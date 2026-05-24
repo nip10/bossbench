@@ -264,9 +264,13 @@ function isJobState(state: string): state is BossbenchJobState {
   return JOB_STATES.has(state as BossbenchJobState);
 }
 function getErrorCode(error: unknown) {
-  return typeof error === "object" && error !== null && "code" in error
-    ? String((error as { code: unknown }).code)
-    : undefined;
+  if (!(typeof error === "object" && error !== null && "code" in error)) {
+    return undefined;
+  }
+  const code = (error as { code: unknown }).code;
+  if (typeof code === "string" && code.length > 0) return code;
+  if (typeof code === "number") return String(code);
+  return undefined;
 }
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : undefined;
