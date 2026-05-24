@@ -1,0 +1,13 @@
+{
+  "name": "@bossbench/example-hono",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run src/index.ts"
+  },
+  "dependencies": {
+    "hono": "^4.6.14",
+    "pg-boss": "^12.18.2",
+    "@bossbench/hono": "workspace:*"
+  }
+}

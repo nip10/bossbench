@@ -1,0 +1,21 @@
+{
+  "name": "@bossbench/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "bossbench": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "typescript": "^5.7.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsup": "^8.3.5",
+    "vitest": "^2.1.8"
+  }
+}
