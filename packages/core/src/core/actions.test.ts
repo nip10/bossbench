@@ -1,9 +1,10 @@
+import type { PgBoss } from "pg-boss";
 import { describe, expect, it, vi } from "vitest";
 import { PgBossActionService } from "./actions";
 
 describe("actions", () => {
   it("blocks readonly", async () => {
-    const s = new PgBossActionService({} as any, true);
+    const s = new PgBossActionService({} as unknown as PgBoss, true);
     await expect(s.deleteJob("queue", "1")).rejects.toMatchObject({
       code: "READONLY_MODE",
     });
@@ -21,7 +22,7 @@ describe("actions", () => {
       resume: vi.fn(),
       deleteJob: vi.fn(),
     };
-    const s = new PgBossActionService(boss as any, false);
+    const s = new PgBossActionService(boss as unknown as PgBoss, false);
     await s.retryJob("email", "1");
     await s.cancelJob("email", "2");
     await s.resumeJob("email", "3");

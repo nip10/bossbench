@@ -13,8 +13,20 @@ describe("api", () => {
       createApiRoutes({
         db: "postgres://x",
         allowUnauthenticated: true,
-      } as any),
+      }),
     ).toBeTruthy();
+  });
+  it("returns INVALID_FILTER for unsupported job states", async () => {
+    const app = createApiRoutes({
+      db: "postgres://x",
+      allowUnauthenticated: true,
+    });
+
+    const res = await app.fetch(new Request("http://x/jobs?state=bogus"));
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body).toEqual(jsonError("INVALID_FILTER", "Invalid job state"));
   });
   it("posts schedules through actions", async () => {
     const spy = vi.spyOn(BossbenchCore, "create").mockReturnValue({
@@ -54,11 +66,11 @@ describe("api", () => {
         createSchedule: vi.fn(async () => ({ ok: true })),
         deleteSchedule: vi.fn(),
       },
-    } as any);
+    } as unknown as BossbenchCore);
     const app = createApiRoutes({
       db: "postgres://x",
       allowUnauthenticated: true,
-    } as any);
+    });
     const res = await app.fetch(
       new Request("http://x/schedules", {
         method: "POST",

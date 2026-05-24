@@ -1,6 +1,11 @@
+import type { Context } from "hono";
 import { Hono } from "hono";
 import { BossbenchCore } from "./core";
-import type { BossbenchOptions, QueryFilters } from "./types";
+import type {
+  BossbenchJobState,
+  BossbenchOptions,
+  QueryFilters,
+} from "./types";
 
 export function jsonError(code: string, message: string, details?: unknown) {
   return { error: { code, message, details } };
@@ -86,7 +91,9 @@ export function createApiRoutes(options: BossbenchOptions) {
   );
   app.post("/schedules", async (c) =>
     mutate(c, async () => {
-      const body = await c.req.json().catch(() => ({}) as any);
+      const body: Partial<ScheduleRequest> = await c.req
+        .json<Partial<ScheduleRequest>>()
+        .catch(() => ({}));
       const name = String(body?.name ?? "");
       const cron = String(body?.cron ?? "");
       const data = body?.data;
@@ -127,7 +134,22 @@ export function createApiRoutes(options: BossbenchOptions) {
   return app;
 }
 
-function parseFilters(c: any): QueryFilters {
+interface ScheduleRequest {
+  name: string;
+  cron: string;
+  data?: unknown;
+}
+
+const JOB_STATES = new Set<BossbenchJobState>([
+  "created",
+  "retry",
+  "active",
+  "completed",
+  "cancelled",
+  "failed",
+]);
+
+function parseFilters(c: Context): QueryFilters {
   const tags: Record<string, string[]> = {};
   const params = new URL(c.req.url).searchParams;
   for (const [key, value] of params.entries()) {
@@ -144,7 +166,11 @@ function parseFilters(c: any): QueryFilters {
   const queue = c.req.query("queue");
   if (queue) filters.queue = queue;
   const state = c.req.query("state");
-  if (state) filters.state = state as any;
+  if (state) {
+    if (!isJobState(state))
+      throw badFilter("INVALID_FILTER", "Invalid job state");
+    filters.state = state;
+  }
   const q = c.req.query("q");
   if (q) filters.q = q;
   const from = c.req.query("from");
@@ -159,14 +185,19 @@ function parseFilters(c: any): QueryFilters {
 async function read(fn: () => Promise<unknown>) {
   try {
     return await fn();
-  } catch (e: any) {
+  } catch (e: unknown) {
     throw normalizeReadError(e);
   }
 }
-async function jsonOk(c: any, data: unknown) {
+async function jsonOk(c: Context, data: unknown) {
   return c.json(data);
 }
-async function jsonOkOr404(c: any, data: any, code: string, message: string) {
+async function jsonOkOr404<T>(
+  c: Context,
+  data: T | null | undefined,
+  code: string,
+  message: string,
+) {
   if (!data) return c.json(jsonError(code, message), 404);
   return c.json(data);
 }
@@ -175,11 +206,11 @@ async function requireJob(core: BossbenchCore, id: string) {
   if (!job) throw badFilter("JOB_NOT_FOUND", "Job not found");
   return job;
 }
-async function mutate(c: any, fn: () => Promise<unknown>) {
+async function mutate(c: Context, fn: () => Promise<unknown>) {
   try {
     return c.json({ ok: true, result: await fn() });
-  } catch (e: any) {
-    const code = e?.code ?? "ACTION_FAILED";
+  } catch (e: unknown) {
+    const code = getErrorCode(e) ?? "ACTION_FAILED";
     const status =
       code === "JOB_NOT_FOUND"
         ? 404
@@ -192,15 +223,16 @@ async function mutate(c: any, fn: () => Promise<unknown>) {
 function n(v: string | undefined) {
   return v == null ? undefined : Number(v);
 }
-function safeMessage(e: any) {
+function safeMessage(e: unknown) {
+  const code = getErrorCode(e);
   return [
     "READONLY_MODE",
     "BOSS_INSTANCE_REQUIRED",
     "DB_UNAVAILABLE",
     "INVALID_FILTER",
     "JOB_NOT_FOUND",
-  ].includes(e?.code)
-    ? e.message
+  ].includes(code ?? "")
+    ? (getErrorMessage(e) ?? "Action failed")
     : "Action failed";
 }
 function safeReadMessage(e: unknown) {
@@ -213,19 +245,31 @@ function safeReadMessage(e: unknown) {
         ? "Job not found"
         : "Database unavailable";
 }
-function normalizeReadError(e: any) {
-  const code =
-    e?.code === "42P01"
+function normalizeReadError(e: unknown) {
+  const originalCode = getErrorCode(e);
+  const code: string =
+    originalCode === "42P01"
       ? "DB_UNAVAILABLE"
-      : ["DB_UNAVAILABLE", "INVALID_FILTER"].includes(e?.code)
-        ? e.code
+      : ["DB_UNAVAILABLE", "INVALID_FILTER"].includes(originalCode ?? "")
+        ? (originalCode ?? "DB_UNAVAILABLE")
         : "DB_UNAVAILABLE";
   return badFilter(
     code,
     code === "DB_UNAVAILABLE"
       ? "Database unavailable"
-      : (e?.message ?? "Invalid filter"),
+      : (getErrorMessage(e) ?? "Invalid filter"),
   );
+}
+function isJobState(state: string): state is BossbenchJobState {
+  return JOB_STATES.has(state as BossbenchJobState);
+}
+function getErrorCode(error: unknown) {
+  return typeof error === "object" && error !== null && "code" in error
+    ? String((error as { code: unknown }).code)
+    : undefined;
+}
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : undefined;
 }
 function badFilter(code: string, message: string) {
   const err = new Error(message) as Error & { code: string };

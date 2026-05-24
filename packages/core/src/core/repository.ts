@@ -1,6 +1,6 @@
 import type { Client, Pool, PoolClient } from "pg";
 import { withDb } from "./db";
-import { quoteIdentifier, quoteQualifiedIdentifier } from "./identifiers";
+import { quoteQualifiedIdentifier } from "./identifiers";
 import type {
   ActivityPoint,
   BossbenchJobState,
@@ -17,6 +17,8 @@ import type {
 } from "./types";
 
 type DbClient = Pool | Client | PoolClient;
+type Row = Record<string, unknown>;
+type CountRow = { total: number };
 
 export class BossbenchRepository {
   constructor(
@@ -65,7 +67,7 @@ export class BossbenchRepository {
   }
   async getQueue(name: string): Promise<QueueDetail | null> {
     const rows = await this.withClient((c) =>
-      this.safeQuery<any>(
+      this.safeQuery<QueueInfo>(
         c,
         `select name, count(*)::int as total, count(*) filter (where state='created')::int as created, count(*) filter (where state='retry')::int as retry, count(*) filter (where state='active')::int as active, count(*) filter (where state='completed')::int as completed, count(*) filter (where state='cancelled')::int as cancelled, count(*) filter (where state='failed')::int as failed from ${this.q("job")} where name=$1 group by name`,
         [name],
@@ -122,7 +124,7 @@ export class BossbenchRepository {
     }
     const sql = `select id::text, name, name as queue, state::text, created_on, started_on, completed_on, priority, data, output from ${this.q("job")}${where.length ? ` where ${where.join(" and ")}` : ""} order by ${sortClause(filters.sort)} limit $${args.push(limit)} offset $${args.push(offset)}`;
     const items = await this.withClient((c) =>
-      this.safeQuery<any>(c, sql, args),
+      this.safeQuery<Row>(c, sql, args),
     );
     const total = await this.countJobs(where, args.slice(0, -2));
     return {
@@ -134,7 +136,7 @@ export class BossbenchRepository {
   }
   async getJob(id: string): Promise<JobDetail | null> {
     const rows = await this.withClient((c) =>
-      this.safeQuery<any>(c, `select * from ${this.q("job")} where id=$1`, [
+      this.safeQuery<Row>(c, `select * from ${this.q("job")} where id=$1`, [
         id,
       ]),
     );
@@ -142,10 +144,10 @@ export class BossbenchRepository {
     return job
       ? {
           ...rowToJobSummary(job),
-          retryCount: job.retry_count ?? 0,
-          retryLimit: job.retry_limit ?? null,
-          singletonKey: job.singleton_key ?? null,
-          expireInSeconds: job.expire_seconds ?? null,
+          retryCount: numberOrDefault(job.retry_count, 0),
+          retryLimit: numberOrNull(job.retry_limit),
+          singletonKey: stringOrNull(job.singleton_key),
+          expireInSeconds: numberOrNull(job.expire_seconds),
           deadLetter: job.dead_letter ?? null,
           raw: job,
         }
@@ -185,7 +187,7 @@ export class BossbenchRepository {
   async getTagValues(field: string, limit = 50) {
     const safe = this.tagField(field);
     const rows = await this.withClient((c) =>
-      this.safeQuery<any>(
+      this.safeQuery<{ value: string | null }>(
         c,
         `select distinct (data ->> '${safe}') as value from ${this.q("job")} where data ->> '${safe}' is not null order by 1 limit $1`,
         [clamp(limit, 1, 200)],
@@ -199,7 +201,7 @@ export class BossbenchRepository {
 
   private async countJobs(where: string[], args: unknown[]) {
     const rows = await this.withClient((c) =>
-      this.safeQuery<any>(
+      this.safeQuery<CountRow>(
         c,
         `select count(*)::int as total from ${this.q("job")}${where.length ? ` where ${where.join(" and ")}` : ""}`,
         args,
@@ -209,7 +211,7 @@ export class BossbenchRepository {
   }
   private async countState(state: BossbenchJobState) {
     const rows = await this.withClient((c) =>
-      this.safeQuery<any>(
+      this.safeQuery<CountRow>(
         c,
         `select count(*)::int as total from ${this.q("job")} where state=$1`,
         [state],
@@ -219,7 +221,7 @@ export class BossbenchRepository {
   }
   private async countOptional(table: string) {
     try {
-      const rows = await this.safeOptionalQuery<any>(
+      const rows = await this.safeOptionalQuery<CountRow>(
         table,
         `select count(*)::int as total from ${this.q(table)}`,
       );
@@ -229,14 +231,14 @@ export class BossbenchRepository {
     }
   }
   private async safeOptionalQuery<T>(
-    table: string,
+    _table: string,
     sql: string,
     args: unknown[] = [],
   ) {
     try {
       return await this.withClient((c) => this.safeQuery<T>(c, sql, args));
-    } catch (e: any) {
-      if (String(e?.code) === "42P01") return [];
+    } catch (e: unknown) {
+      if (getErrorCode(e) === "42P01") return [];
       throw e;
     }
   }
@@ -249,7 +251,7 @@ export class BossbenchRepository {
     return result.rows as T[];
   }
   private async withClient<T>(fn: (client: DbClient) => Promise<T>) {
-    return withDb(this.requireDb() as any, fn);
+    return withDb(this.requireDb(), fn);
   }
   private tagField(field: string) {
     const safe = quoteTagField(field);
@@ -259,16 +261,16 @@ export class BossbenchRepository {
   }
 }
 
-function rowToJobSummary(row: any): JobSummary {
+function rowToJobSummary(row: Row): JobSummary {
   return {
     id: String(row.id),
-    name: row.name,
-    queue: row.queue ?? row.name,
-    state: row.state,
-    createdOn: row.created_on ?? null,
-    startedOn: row.started_on ?? null,
-    completedOn: row.completed_on ?? null,
-    priority: row.priority ?? null,
+    name: String(row.name),
+    queue: String(row.queue ?? row.name),
+    state: row.state as BossbenchJobState,
+    createdOn: stringOrNull(row.created_on),
+    startedOn: stringOrNull(row.started_on),
+    completedOn: stringOrNull(row.completed_on),
+    priority: numberOrNull(row.priority),
     data: row.data ?? null,
     output: row.output ?? null,
   };
@@ -290,9 +292,6 @@ function sortClause(sort?: string) {
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
-function pushFilter(where: string[], args: unknown[], clause?: string) {
-  if (clause) where.push(clause);
-}
 function quoteTagField(field: string) {
   if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(field))
     throw error("INVALID_FILTER", "Invalid tag field");
@@ -302,4 +301,18 @@ function error(code: string, message: string) {
   const e = new Error(message) as Error & { code: string };
   e.code = code;
   return e;
+}
+function numberOrDefault(value: unknown, fallback: number) {
+  return value == null ? fallback : Number(value);
+}
+function numberOrNull(value: unknown) {
+  return value == null ? null : Number(value);
+}
+function stringOrNull(value: unknown) {
+  return value == null ? null : String(value);
+}
+function getErrorCode(error: unknown) {
+  return typeof error === "object" && error !== null && "code" in error
+    ? String((error as { code: unknown }).code)
+    : undefined;
 }

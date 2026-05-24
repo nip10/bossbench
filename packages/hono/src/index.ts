@@ -11,13 +11,15 @@ export function bossbench(options: BossbenchOptions) {
   if (core.requiresAuth())
     app.use("*", async (c, next) => {
       const parsed = parseBasicAuth(c.req.header("authorization"));
+      const authOptions = core.options.auth;
       if (
+        !authOptions ||
         !parsed ||
         !safeCredentialsEqual(
           parsed.username,
           parsed.password,
-          core.options.auth!.username,
-          core.options.auth!.password,
+          authOptions.username,
+          authOptions.password,
         )
       )
         return c.text("Unauthorized", 401, {

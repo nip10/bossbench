@@ -3,7 +3,20 @@ import { existsSync, readFileSync } from "node:fs";
 import { join, normalize } from "node:path";
 import type { BossbenchOptions } from "@bossbench/core";
 import { BossbenchCore, createApiRoutes, UI_DIST_PATH } from "@bossbench/core";
-import express, { type Router as ExpressRouter, Router } from "express";
+import express, {
+  type Router as ExpressRouter,
+  type NextFunction,
+  type Request,
+  type RequestHandler,
+  type Response,
+  Router,
+} from "express";
+
+interface FetchApp {
+  fetch(
+    request: globalThis.Request,
+  ): globalThis.Response | Promise<globalThis.Response>;
+}
 
 export function bossbench(options: BossbenchOptions): ExpressRouter {
   const core = BossbenchCore.create(options);
@@ -21,11 +34,11 @@ export function bossbench(options: BossbenchOptions): ExpressRouter {
   return r;
 }
 
-function bridge(app: any) {
-  return async (req: any, res: any, next: any) => {
+function bridge(app: FetchApp): RequestHandler {
+  return async (req: Request, res: Response, next: NextFunction) => {
     try {
       const url = `${req.protocol}://${req.get("host")}${req.url}`;
-      const headers = new Headers(req.headers as any);
+      const headers = headersFromExpress(req);
       const init: RequestInit = { method: req.method, headers };
       if (
         req.method !== "GET" &&
@@ -47,16 +60,18 @@ function bridge(app: any) {
     }
   };
 }
-function auth(core: BossbenchCore) {
-  return (req: any, res: any, next: any) => {
+function auth(core: BossbenchCore): RequestHandler {
+  return (req: Request, res: Response, next: NextFunction) => {
     const parsed = parseBasicAuth(req.headers.authorization);
+    const authOptions = core.options.auth;
     if (
+      !authOptions ||
       !parsed ||
       !safeCredentialsEqual(
         parsed.username,
         parsed.password,
-        core.options.auth!.username,
-        core.options.auth!.password,
+        authOptions.username,
+        authOptions.password,
       )
     )
       return res
@@ -74,14 +89,25 @@ function shell() {
     ? readFileSync(path, "utf8")
     : '<!doctype html><html><body><div id="root"></div></body></html>';
 }
-function serveAssets() {
-  return (_req: any, res: any) => {
-    const file = safeAssetPath(String(_req.params[0] ?? ""));
+function serveAssets(): RequestHandler {
+  return (req: Request, res: Response) => {
+    const file = safeAssetPath(String(req.params[0] ?? ""));
     if (!file) return res.status(404).end();
     const path = join(UI_DIST_PATH, "assets", file);
     if (existsSync(path)) return res.sendFile(path);
     return res.status(404).end();
   };
+}
+function headersFromExpress(req: Request) {
+  const headers = new Headers();
+  for (const [key, value] of Object.entries(req.headers)) {
+    if (Array.isArray(value)) {
+      for (const item of value) headers.append(key, item);
+    } else if (typeof value === "string") {
+      headers.set(key, value);
+    }
+  }
+  return headers;
 }
 function safeAssetPath(file: string) {
   const normalized = normalize(file);

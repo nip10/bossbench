@@ -1,4 +1,3 @@
-import type { PgBoss } from "pg-boss";
 import { PgBossActionService } from "./actions";
 import { normalizeOptions } from "./options";
 import { BossbenchRepository } from "./repository";

@@ -27,7 +27,12 @@ function detectPackageManager(cwd: string) {
   return "npm";
 }
 
-function detectFramework(pkg: any) {
+interface PackageJson {
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+}
+
+function detectFramework(pkg: PackageJson) {
   const deps = { ...pkg.dependencies, ...pkg.devDependencies };
   if (deps.hono) return "hono";
   if (deps.express) return "express";
