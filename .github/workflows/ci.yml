@@ -37,3 +37,4 @@ jobs:
       - run: bun run test
       - run: bun run test:integration
       - run: bun run build
+      - run: bun run smoke

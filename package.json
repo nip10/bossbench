@@ -22,6 +22,7 @@
     "lint": "oxlint . && biome check .",
     "lint:fix": "oxlint . --fix && biome check --write .",
     "format": "biome format --write .",
+    "smoke": "bun scripts/smoke.ts",
     "commitlint": "commitlint --last --verbose",
     "commitlint:edit": "commitlint --config commitlint.config.cjs --edit .git/COMMIT_EDITMSG",
     "changeset": "changeset",

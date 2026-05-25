@@ -132,6 +132,7 @@ bun install
 bun run lint
 bun run typecheck
 bun run test
+bun run smoke
 docker compose up -d --pull never postgres
 bun run test:integration
 bun run build
