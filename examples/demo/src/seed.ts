@@ -70,10 +70,14 @@ export async function seedDemoData({
     await boss.createQueue(queue).catch(() => undefined);
   }
 
-  await boss.schedule("reports", "*/5 * * * *", { demo: "true", kind: "summary" }).catch(() => undefined);
+  await boss
+    .schedule("reports", "*/5 * * * *", { demo: "true", kind: "summary" })
+    .catch(() => undefined);
 
   await pool.query(`delete from ${schema}.job where data ->> 'demo' = 'true'`);
-  await pool.query(`delete from ${schema}.warning where data ->> 'demo' = 'true'`);
+  await pool.query(
+    `delete from ${schema}.warning where data ->> 'demo' = 'true'`,
+  );
 
   for (const job of createDemoJobs()) {
     await pool.query(
@@ -96,6 +100,10 @@ export async function seedDemoData({
 
   await pool.query(
     `insert into ${schema}.warning (type, message, data) values ($1, $2, $3::jsonb)`,
-    ["demo-warning", "This is sample warning data for the Bossbench demo", JSON.stringify({ demo: "true" })],
+    [
+      "demo-warning",
+      "This is sample warning data for the Bossbench demo",
+      JSON.stringify({ demo: "true" }),
+    ],
   );
 }

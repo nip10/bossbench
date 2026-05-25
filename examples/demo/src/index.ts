@@ -6,7 +6,8 @@ import { seedDemoData } from "./seed";
 
 const port = Number(process.env.PORT ?? 3000);
 const connectionString =
-  process.env.DATABASE_URL ?? "postgres://postgres:postgres@localhost:54329/bossbench";
+  process.env.DATABASE_URL ??
+  "postgres://postgres:postgres@localhost:54329/bossbench";
 const username = process.env.BOSSBENCH_USER ?? "admin";
 const password = process.env.BOSSBENCH_PASS ?? "change-me";
 const schema = process.env.PGBOSS_SCHEMA ?? "pgboss";
