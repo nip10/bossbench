@@ -1,4 +1,6 @@
-export const UI_DIST_PATH = new URL("../dist/ui", import.meta.url).pathname;
+export * from "./api/fetch-handler";
+export * from "./api/handlers";
+export { createApiRoutes as createHonoApiRoutes } from "./api/router";
 export * from "./core/actions";
 export * from "./core/api";
 export * from "./core/core";
@@ -7,3 +9,9 @@ export * from "./core/identifiers";
 export * from "./core/options";
 export * from "./core/repository";
 export * from "./core/types";
+export * from "./server/base-path";
+export * from "./server/basic-auth";
+export { buildBossbenchApiApp } from "./server/hono-api-app";
+export { buildBossbenchApp } from "./server/hono-app";
+export * from "./server/static-assets";
+export * from "./ui-dist";
