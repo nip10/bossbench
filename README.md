@@ -22,6 +22,23 @@ npx @bossbench/cli init
 
 The CLI detects Hono or Express, updates `.env.example`, updates package metadata, and injects a `/jobs` mount into common app entry files.
 
+## Local demo
+
+Use the standalone demo to test the dashboard with seeded pg-boss data:
+
+```bash
+docker compose up -d --pull never postgres
+bun install
+bun run --filter=@bossbench/example-demo dev
+```
+
+Then open http://localhost:3000/jobs and sign in with:
+
+- Username: `admin`
+- Password: `change-me`
+
+The demo seeds example queues, jobs, schedules, warnings, metrics, dead-letter data, and `teamId` tags.
+
 ## Hono
 
 ```bash
