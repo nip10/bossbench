@@ -99,7 +99,7 @@ export class BossbenchRepository {
       args.push(`%${filters.q}%`);
       const i = args.length;
       where.push(
-        `(name ILIKE $${i} OR state::text ILIKE $${i} OR data::text ILIKE $${i})`,
+        `(id::text ILIKE $${i} OR name ILIKE $${i} OR state::text ILIKE $${i} OR data::text ILIKE $${i})`,
       );
     }
     if (filters.from) {

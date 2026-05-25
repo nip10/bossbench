@@ -7,7 +7,13 @@ export const queryKeys = {
   overview: ["overview"] as const,
   queues: ["queues"] as const,
   queue: (name: string) => ["queue", name] as const,
-  jobs: (q?: string, state?: string) => ["jobs", q, state] as const,
+  jobs: (
+    q?: string,
+    state?: string,
+    queue?: string,
+    limit?: number,
+    sort?: string,
+  ) => ["jobs", q, state, queue, limit, sort] as const,
   job: (id: string) => ["job", id] as const,
   schedules: ["schedules"] as const,
   deadLetter: ["dead-letter"] as const,
@@ -46,9 +52,16 @@ export const useJobs = (filters?: {
   state?: string;
   queue?: string;
   limit?: number;
+  sort?: string;
 }) =>
   useQuery({
-    queryKey: queryKeys.jobs(filters?.q, filters?.state),
+    queryKey: queryKeys.jobs(
+      filters?.q,
+      filters?.state,
+      filters?.queue,
+      filters?.limit,
+      filters?.sort,
+    ),
     queryFn: () => {
       const state =
         filters?.state && filters.state !== "all"
@@ -58,6 +71,7 @@ export const useJobs = (filters?: {
         ...(filters?.q ? { q: filters.q } : {}),
         ...(filters?.queue ? { queue: filters.queue } : {}),
         ...(filters?.limit ? { limit: filters.limit } : {}),
+        ...(filters?.sort ? { sort: filters.sort } : {}),
         ...(state ? { state } : {}),
       };
       return filters?.queue

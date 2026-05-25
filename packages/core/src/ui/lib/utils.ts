@@ -20,6 +20,13 @@ export function formatRelativeTime(value: string | number | null | undefined) {
   return date.toLocaleString();
 }
 
+export function formatAbsoluteTime(value: string | number | null | undefined) {
+  if (value === null || value === undefined) return "—";
+  const date = typeof value === "number" ? new Date(value) : new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleString();
+}
+
 export function formatDuration(ms: number) {
   if (ms < 1000) return `${ms}ms`;
   if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;

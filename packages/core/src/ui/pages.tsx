@@ -1,8 +1,19 @@
 import { Link, useParams } from "@tanstack/react-router";
-import type React from "react";
-import { useState } from "react";
+import {
+  AlertTriangle,
+  Bell,
+  CalendarDays,
+  CircleSlash2,
+  Database,
+  Inbox,
+  LoaderCircle,
+  SearchX,
+  SquareActivity,
+} from "lucide-react";
+import { isValidElement, type ReactNode, useState } from "react";
 import type {
   ActivityPoint,
+  JobDetail,
   JobSummary,
   MetricPoint,
   OverviewStats,
@@ -10,6 +21,17 @@ import type {
   ScheduleInfo,
   WarningInfo,
 } from "../core/types";
+import { SummaryCard } from "./components/metrics/summary-card";
+import { EmptyState } from "./components/shared/empty-state";
+import { JsonViewer } from "./components/shared/json-viewer";
+import { RelativeTime } from "./components/shared/relative-time";
+import { SmartSearch } from "./components/shared/smart-search";
+import {
+  createSort,
+  parseSort,
+  SortableHeader,
+} from "./components/shared/sortable-header";
+import { StatusBadge } from "./components/shared/status-badge";
 import { api } from "./lib/api";
 import {
   useActivity,
@@ -24,7 +46,7 @@ import {
   useSchedules,
   useWarnings,
 } from "./lib/hooks";
-import { formatRelativeTime, truncate } from "./lib/utils";
+import { truncate } from "./lib/utils";
 import { useDashboardSearch } from "./router";
 
 function Section({
@@ -35,8 +57,8 @@ function Section({
 }: {
   title: string;
   subtitle?: string;
-  actions?: React.ReactNode;
-  children: React.ReactNode;
+  actions?: ReactNode;
+  children: ReactNode;
 }) {
   return (
     <section className="panel">
@@ -56,15 +78,15 @@ function Table({
   columns,
   rows,
 }: {
-  columns: string[];
-  rows: React.ReactNode[][];
+  columns: ReactNode[];
+  rows: ReactNode[][];
 }) {
   return (
     <table className="table">
       <thead>
         <tr>
           {columns.map((column) => (
-            <th key={column}>{column}</th>
+            <th key={nodeKey(column)}>{column}</th>
           ))}
         </tr>
       </thead>
@@ -72,7 +94,7 @@ function Table({
         {rows.map((row) => (
           <tr key={rowKey(row)}>
             {row.map((cell, cellIndex) => (
-              <td key={columns[cellIndex]}>{cell}</td>
+              <td key={cellKey(row, cell, cellIndex)}>{cell}</td>
             ))}
           </tr>
         ))}
@@ -81,57 +103,40 @@ function Table({
   );
 }
 
-function rowKey(row: React.ReactNode[]) {
+function rowKey(row: ReactNode[]) {
   for (const cell of row) {
+    if (isValidElement(cell) && cell.key !== null && cell.key !== undefined) {
+      return String(cell.key);
+    }
     if (typeof cell === "string" || typeof cell === "number")
       return String(cell);
   }
   return row.length.toString();
 }
 
-function Stat({
-  label,
-  value,
-  hint,
-}: {
-  label: string;
-  value: React.ReactNode;
-  hint: string;
-}) {
-  return (
-    <div className="card">
-      <div className="label">{label}</div>
-      <div className="value">{value}</div>
-      <div className="hint">{hint}</div>
-    </div>
-  );
+function nodeKey(node: ReactNode) {
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (isValidElement(node) && node.key !== null && node.key !== undefined) {
+    return String(node.key);
+  }
+  return "node";
 }
 
-function StatePill({ state }: { state: string }) {
-  return <span className={`state ${state}`}>{state}</span>;
-}
-
-function Empty({
-  title,
-  description,
-}: {
-  title: string;
-  description?: string;
-}) {
-  return (
-    <div className="empty">
-      <strong>{title}</strong>
-      {description ? <div className="muted">{description}</div> : null}
-    </div>
-  );
+function cellKey(row: ReactNode[], cell: ReactNode, cellIndex: number) {
+  return `${rowKey(row)}-${nodeKey(cell)}-${cellIndex}`;
 }
 
 export function OverviewPage() {
   const { data, isLoading, error } = useOverview();
-  if (isLoading && !data) return <div className="empty">Loading overview…</div>;
+  if (isLoading && !data)
+    return <EmptyState icon={LoaderCircle} title="Loading overview…" />;
   if (error)
     return (
-      <Empty title="Failed to load overview" description={error.message} />
+      <EmptyState
+        icon={AlertTriangle}
+        title="Failed to load overview"
+        description={error.message}
+      />
     );
   if (!data) return null;
 
@@ -144,25 +149,29 @@ export function OverviewPage() {
   return (
     <div className="section">
       <div className="stats-grid">
-        <Stat
-          label="Total Jobs"
+        <SummaryCard
+          title="Total Jobs"
           value={totalJobs.toLocaleString()}
-          hint="Across all states"
+          subtitle="Across all states"
+          icon={Database}
         />
-        <Stat
-          label="Failed / Dead Letter"
+        <SummaryCard
+          title="Dead Letter"
           value={overview.deadLetter.toLocaleString()}
-          hint="Needs attention"
+          subtitle="Needs attention"
+          icon={CircleSlash2}
         />
-        <Stat
-          label="Warnings"
+        <SummaryCard
+          title="Warnings"
           value={overview.warnings.toLocaleString()}
-          hint="Schema or runtime"
+          subtitle="Schema or runtime"
+          icon={Bell}
         />
-        <Stat
-          label="Queues"
+        <SummaryCard
+          title="Queues"
           value={overview.queues.length.toLocaleString()}
-          hint="Configured queues"
+          subtitle="Configured queues"
+          icon={Inbox}
         />
       </div>
       <Section title="Queues" subtitle="Current queue state counts">
@@ -195,10 +204,27 @@ export function OverviewPage() {
 
 export function QueuesPage() {
   const { data, isLoading, error } = useQueues();
-  if (isLoading && !data) return <div className="empty">Loading queues…</div>;
+  if (isLoading && !data)
+    return <EmptyState icon={LoaderCircle} title="Loading queues…" />;
   if (error)
-    return <Empty title="Queues unavailable" description={error.message} />;
+    return (
+      <EmptyState
+        icon={AlertTriangle}
+        title="Queues unavailable"
+        description={error.message}
+      />
+    );
   const queues = data ?? [];
+
+  if (!queues.length) {
+    return (
+      <EmptyState
+        icon={Inbox}
+        title="No queues yet"
+        description="Create a pg-boss queue to start seeing jobs and backlog counts."
+      />
+    );
+  }
 
   return (
     <Section title="Queues" subtitle={`${queues.length} queues`}>
@@ -238,10 +264,12 @@ export function QueuesPage() {
 export function QueuePage() {
   const params = useParams({ strict: false }) as { queueName: string };
   const { data, isLoading, error } = useQueue(params.queueName);
-  if (isLoading && !data) return <div className="empty">Loading queue…</div>;
+  if (isLoading && !data)
+    return <EmptyState icon={LoaderCircle} title="Loading queue…" />;
   if (error || !data)
     return (
-      <Empty
+      <EmptyState
+        icon={AlertTriangle}
         title="Queue unavailable"
         description={error?.message ?? "Not found"}
       />
@@ -250,46 +278,78 @@ export function QueuePage() {
   return (
     <div className="section">
       <div className="stats-grid">
-        <Stat label="Total" value={data.total} hint="All jobs" />
-        <Stat label="Active" value={data.active} hint="Processing" />
-        <Stat label="Failed" value={data.failed} hint="Needs attention" />
-        <Stat label="Completed" value={data.completed} hint="Finished" />
+        <SummaryCard title="Total" value={data.total} subtitle="All jobs" />
+        <SummaryCard title="Active" value={data.active} subtitle="Processing" />
+        <SummaryCard
+          title="Failed"
+          value={data.failed}
+          subtitle="Needs attention"
+        />
+        <SummaryCard
+          title="Completed"
+          value={data.completed}
+          subtitle="Finished"
+        />
       </div>
       <Section title={data.name} subtitle="Recent jobs">
-        <Table
-          columns={["Job", "State", "Created", "Completed", "Priority"]}
-          rows={data.recentJobs.map((job: JobSummary) => [
-            <Link
-              key={job.id}
-              to="/jobs/$jobId"
-              params={{ jobId: job.id } as never}
-              className="mono"
-            >
-              {truncate(job.name, 30)}
-            </Link>,
-            <StatePill key={`${job.id}-state`} state={job.state} />,
-            formatRelativeTime(job.createdOn),
-            formatRelativeTime(job.completedOn),
-            job.priority ?? "—",
-          ])}
-        />
+        {data.recentJobs.length ? (
+          <Table
+            columns={["Job", "State", "Created", "Completed", "Priority"]}
+            rows={data.recentJobs.map((job: JobSummary) => [
+              <Link
+                key={job.id}
+                to="/jobs/$jobId"
+                params={{ jobId: job.id } as never}
+                className="mono"
+              >
+                {truncate(job.name, 30)}
+              </Link>,
+              <StatusBadge key={`${job.id}-state`} state={job.state} />,
+              <RelativeTime
+                key={`${job.id}-created`}
+                timestamp={job.createdOn}
+              />,
+              <RelativeTime
+                key={`${job.id}-completed`}
+                timestamp={job.completedOn}
+              />,
+              job.priority ?? "—",
+            ])}
+          />
+        ) : (
+          <EmptyState
+            icon={Inbox}
+            title="No recent jobs"
+            description="This queue has no recent jobs yet."
+          />
+        )}
       </Section>
     </div>
   );
 }
 
 export function RunsPage() {
-  const { searchQuery } = useDashboardSearch();
+  const { searchQuery, setSearchQuery } = useDashboardSearch();
   const [state, setState] = useState<string>("all");
+  const [sort, setSort] = useState<string | undefined>("created_on:desc");
+  const currentSort = parseSort(sort);
   const filters = {
     ...(searchQuery ? { q: searchQuery } : {}),
     ...(state === "all" ? {} : { state }),
     limit: 100,
+    ...(sort ? { sort } : {}),
   };
   const { data, isLoading, error } = useJobs(filters);
-  if (isLoading && !data) return <div className="empty">Loading jobs…</div>;
+  if (isLoading && !data)
+    return <EmptyState icon={LoaderCircle} title="Loading jobs…" />;
   if (error)
-    return <Empty title="Jobs unavailable" description={error.message} />;
+    return (
+      <EmptyState
+        icon={AlertTriangle}
+        title="Jobs unavailable"
+        description={error.message}
+      />
+    );
   const rows = data?.items ?? [];
 
   return (
@@ -297,34 +357,82 @@ export function RunsPage() {
       title="Jobs"
       subtitle={`${data?.total ?? 0} matched`}
       actions={
-        <>
-          <input
-            className="input"
-            value={searchQuery}
-            placeholder="Search jobs…"
-            readOnly
-          />
-          <select value={state} onChange={(e) => setState(e.target.value)}>
-            <option value="all">All states</option>
-            <option value="created">Created</option>
-            <option value="retry">Retry</option>
-            <option value="active">Active</option>
-            <option value="completed">Completed</option>
-            <option value="cancelled">Cancelled</option>
-            <option value="failed">Failed</option>
-          </select>
-        </>
+        <SmartSearch
+          value={searchQuery}
+          onValueChange={setSearchQuery}
+          state={state}
+          onStateChange={setState}
+          placeholder="Search jobs…"
+          states={[
+            { value: "all", label: "All states" },
+            { value: "created", label: "Created" },
+            { value: "retry", label: "Retry" },
+            { value: "active", label: "Active" },
+            { value: "completed", label: "Completed" },
+            { value: "cancelled", label: "Cancelled" },
+            { value: "failed", label: "Failed" },
+          ]}
+        />
       }
     >
       <Table
         columns={[
           "ID",
-          "Name",
-          "Queue",
-          "State",
-          "Created",
-          "Completed",
-          "Priority",
+          <SortableHeader
+            key="name"
+            field="name"
+            label="Queue"
+            currentSort={currentSort}
+            onSort={(field, direction) =>
+              setSort(
+                field && direction ? createSort(field, direction) : undefined,
+              )
+            }
+          />,
+          <SortableHeader
+            key="state"
+            field="state"
+            label="State"
+            currentSort={currentSort}
+            onSort={(field, direction) =>
+              setSort(
+                field && direction ? createSort(field, direction) : undefined,
+              )
+            }
+          />,
+          <SortableHeader
+            key="created_on"
+            field="created_on"
+            label="Created"
+            currentSort={currentSort}
+            onSort={(field, direction) =>
+              setSort(
+                field && direction ? createSort(field, direction) : undefined,
+              )
+            }
+          />,
+          <SortableHeader
+            key="completed_on"
+            field="completed_on"
+            label="Completed"
+            currentSort={currentSort}
+            onSort={(field, direction) =>
+              setSort(
+                field && direction ? createSort(field, direction) : undefined,
+              )
+            }
+          />,
+          <SortableHeader
+            key="priority"
+            field="priority"
+            label="Priority"
+            currentSort={currentSort}
+            onSort={(field, direction) =>
+              setSort(
+                field && direction ? createSort(field, direction) : undefined,
+              )
+            }
+          />,
         ]}
         rows={rows.map((job: JobSummary) => [
           <Link
@@ -335,14 +443,27 @@ export function RunsPage() {
           >
             {truncate(job.id, 12)}
           </Link>,
-          job.name,
           job.queue,
-          <StatePill key={`${job.id}-state`} state={job.state} />,
-          formatRelativeTime(job.createdOn),
-          formatRelativeTime(job.completedOn),
+          <StatusBadge key={`${job.id}-state`} state={job.state} />,
+          <RelativeTime key={`${job.id}-created`} timestamp={job.createdOn} />,
+          <RelativeTime
+            key={`${job.id}-completed`}
+            timestamp={job.completedOn}
+          />,
           job.priority ?? "—",
         ])}
       />
+      {!rows.length ? (
+        <EmptyState
+          icon={SearchX}
+          title="No jobs matched"
+          description={
+            searchQuery || state !== "all"
+              ? "Relax the search or state filter to find more jobs."
+              : "No jobs have been recorded yet."
+          }
+        />
+      ) : null}
     </Section>
   );
 }
@@ -352,18 +473,17 @@ export function JobPage() {
   const { data: config } = useConfig();
   const { data, isLoading, error } = useJob(params.jobId);
   const [actionState, setActionState] = useState<string | null>(null);
-  if (isLoading && !data) return <div className="empty">Loading job…</div>;
+  if (isLoading && !data)
+    return <EmptyState icon={LoaderCircle} title="Loading job…" />;
   if (error || !data)
     return (
-      <Empty
+      <EmptyState
+        icon={AlertTriangle}
         title="Job unavailable"
         description={error?.message ?? "Not found"}
       />
     );
-  const job = data as JobSummary & {
-    retryCount?: number;
-    retryLimit?: number | null;
-  };
+  const job = data as JobDetail;
   const actionsEnabled = !!config?.hasBoss && !config.readonly;
 
   const runAction = async (label: string, action: () => Promise<unknown>) => {
@@ -386,7 +506,7 @@ export function JobPage() {
         subtitle={job.id}
         actions={
           <div className="filters">
-            <StatePill state={job.state} />
+            <StatusBadge state={job.state} />
             <button
               type="button"
               className="button"
@@ -429,20 +549,35 @@ export function JobPage() {
           columns={["Field", "Value"]}
           rows={[
             ["Queue", job.queue],
-            ["State", job.state],
-            ["Created", formatRelativeTime(job.createdOn)],
-            ["Started", formatRelativeTime(job.startedOn)],
-            ["Completed", formatRelativeTime(job.completedOn)],
+            ["State", <StatusBadge key="state" state={job.state} />],
+            [
+              "Created",
+              <RelativeTime key="created" timestamp={job.createdOn} />,
+            ],
+            [
+              "Started",
+              <RelativeTime key="started" timestamp={job.startedOn} />,
+            ],
+            [
+              "Completed",
+              <RelativeTime key="completed" timestamp={job.completedOn} />,
+            ],
             ["Priority", job.priority ?? "—"],
             ["Retry Count", job.retryCount ?? "—"],
             ["Retry Limit", job.retryLimit ?? "—"],
+            ["Singleton Key", job.singletonKey ?? "—"],
+            ["Expires In", job.expireInSeconds ?? "—"],
           ]}
         />
       </Section>
       <Section title="Payload" subtitle="JSON data">
-        <pre className="mono" style={{ margin: 0, whiteSpace: "pre-wrap" }}>
-          {JSON.stringify(job.data, null, 2)}
-        </pre>
+        <JsonViewer data={job.data} />
+      </Section>
+      <Section title="Output" subtitle="Task result">
+        <JsonViewer data={job.output ?? null} defaultExpanded={false} />
+      </Section>
+      <Section title="Raw" subtitle="Repository payload">
+        <JsonViewer data={job.raw} defaultExpanded={false} />
       </Section>
     </div>
   );
@@ -455,9 +590,15 @@ export function SchedulersPage() {
   const [scheduleName, setScheduleName] = useState("");
   const [scheduleCron, setScheduleCron] = useState("");
   if (isLoading && !data)
-    return <div className="empty">Loading schedules…</div>;
+    return <EmptyState icon={LoaderCircle} title="Loading schedules…" />;
   if (error)
-    return <Empty title="Schedules unavailable" description={error.message} />;
+    return (
+      <EmptyState
+        icon={AlertTriangle}
+        title="Schedules unavailable"
+        description={error.message}
+      />
+    );
   const schedules = data ?? [];
   const actionsEnabled = !!config?.hasBoss && !config.readonly;
 
@@ -517,27 +658,38 @@ export function SchedulersPage() {
       }
     >
       {actionState ? <div className="banner compact">{actionState}</div> : null}
-      <Table
-        columns={["Name", "Cron", "Timezone", "Created", "Data", "Actions"]}
-        rows={schedules.map((schedule: ScheduleInfo) => [
-          schedule.name,
-          schedule.cron ?? "—",
-          schedule.tz ?? "—",
-          formatRelativeTime(schedule.created),
-          <span className="mono" key={schedule.name}>
-            {truncate(JSON.stringify(schedule.data ?? {}), 40)}
-          </span>,
-          <button
-            type="button"
-            className="button"
-            key={`${schedule.name}-unschedule`}
-            disabled={!actionsEnabled}
-            onClick={() => unschedule(schedule.name)}
-          >
-            Unschedule
-          </button>,
-        ])}
-      />
+      {schedules.length ? (
+        <Table
+          columns={["Name", "Cron", "Timezone", "Created", "Data", "Actions"]}
+          rows={schedules.map((schedule: ScheduleInfo) => [
+            schedule.name,
+            schedule.cron ?? "—",
+            schedule.tz ?? "—",
+            <RelativeTime
+              key={`${schedule.name}-created`}
+              timestamp={schedule.created}
+            />,
+            <span className="mono" key={schedule.name}>
+              {truncate(JSON.stringify(schedule.data ?? {}), 40)}
+            </span>,
+            <button
+              type="button"
+              className="button"
+              key={`${schedule.name}-unschedule`}
+              disabled={!actionsEnabled}
+              onClick={() => unschedule(schedule.name)}
+            >
+              Unschedule
+            </button>,
+          ])}
+        />
+      ) : (
+        <EmptyState
+          icon={CalendarDays}
+          title="No schedules"
+          description="Add a cron schedule to automatically enqueue jobs."
+        />
+      )}
     </Section>
   );
 }
@@ -545,17 +697,31 @@ export function SchedulersPage() {
 export function DeadLetterPage() {
   const { data, isLoading, error } = useDeadLetter();
   if (isLoading && !data)
-    return <div className="empty">Loading dead-letter…</div>;
+    return <EmptyState icon={LoaderCircle} title="Loading dead-letter…" />;
   if (error)
     return (
-      <Empty title="Dead letter unavailable" description={error.message} />
+      <EmptyState
+        icon={AlertTriangle}
+        title="Dead letter unavailable"
+        description={error.message}
+      />
     );
   const jobs = data?.items ?? [];
+
+  if (!jobs.length) {
+    return (
+      <EmptyState
+        icon={CircleSlash2}
+        title="Dead letter is empty"
+        description="Failed jobs will appear here when pg-boss exhausts retries."
+      />
+    );
+  }
 
   return (
     <Section title="Dead Letter" subtitle={`${data?.total ?? 0} failed jobs`}>
       <Table
-        columns={["ID", "Name", "Queue", "State", "Created"]}
+        columns={["ID", "Queue", "State", "Created"]}
         rows={jobs.map((job: JobSummary) => [
           <Link
             key={job.id}
@@ -565,10 +731,9 @@ export function DeadLetterPage() {
           >
             {truncate(job.id, 12)}
           </Link>,
-          job.name,
           job.queue,
-          <StatePill key={`${job.id}-state`} state={job.state} />,
-          formatRelativeTime(job.createdOn),
+          <StatusBadge key={`${job.id}-state`} state={job.state} />,
+          <RelativeTime key={`${job.id}-created`} timestamp={job.createdOn} />,
         ])}
       />
     </Section>
@@ -577,17 +742,37 @@ export function DeadLetterPage() {
 
 export function WarningsPage() {
   const { data, isLoading, error } = useWarnings();
-  if (isLoading && !data) return <div className="empty">Loading warnings…</div>;
+  if (isLoading && !data)
+    return <EmptyState icon={LoaderCircle} title="Loading warnings…" />;
   if (error)
-    return <Empty title="Warnings unavailable" description={error.message} />;
+    return (
+      <EmptyState
+        icon={AlertTriangle}
+        title="Warnings unavailable"
+        description={error.message}
+      />
+    );
   const warnings = data?.items ?? [];
+
+  if (!warnings.length) {
+    return (
+      <EmptyState
+        icon={Bell}
+        title="No warnings"
+        description="Schema and runtime warnings will appear here when the dashboard detects issues."
+      />
+    );
+  }
 
   return (
     <Section title="Warnings" subtitle={`${warnings.length} warnings`}>
       <Table
         columns={["Created", "Type", "Detail"]}
         rows={warnings.map((warning: WarningInfo) => [
-          formatRelativeTime(warning.createdOn),
+          <RelativeTime
+            key={`${warning.id}-created`}
+            timestamp={warning.createdOn}
+          />,
           warning.name,
           <span className="mono" key={warning.id}>
             {truncate(JSON.stringify(warning.detail ?? {}), 80)}
@@ -627,10 +812,26 @@ function Bars({
 
 export function MetricsPage() {
   const { data, isLoading, error } = useMetrics();
-  if (isLoading && !data) return <div className="empty">Loading metrics…</div>;
+  if (isLoading && !data)
+    return <EmptyState icon={LoaderCircle} title="Loading metrics…" />;
   if (error)
-    return <Empty title="Metrics unavailable" description={error.message} />;
+    return (
+      <EmptyState
+        icon={AlertTriangle}
+        title="Metrics unavailable"
+        description={error.message}
+      />
+    );
   const buckets = (data?.buckets ?? []) as MetricPoint[];
+  const totals = buckets.reduce(
+    (acc, bucket) => ({
+      created: acc.created + bucket.created,
+      completed: acc.completed + bucket.completed,
+      failed: acc.failed + bucket.failed,
+      retry: acc.retry + bucket.retry,
+    }),
+    { created: 0, completed: 0, failed: 0, retry: 0 },
+  );
 
   return (
     <Section
@@ -638,6 +839,20 @@ export function MetricsPage() {
       subtitle="Created / completed / failed / retry"
       actions={<span className="muted">24h buckets</span>}
     >
+      <div className="stats-grid">
+        <SummaryCard
+          title="Created"
+          value={totals.created}
+          icon={SquareActivity}
+        />
+        <SummaryCard
+          title="Completed"
+          value={totals.completed}
+          icon={Database}
+        />
+        <SummaryCard title="Failed" value={totals.failed} icon={CircleSlash2} />
+        <SummaryCard title="Retry" value={totals.retry} icon={Bell} />
+      </div>
       <Bars
         palette=""
         items={buckets.slice(0, 12).map((bucket) => ({
@@ -655,10 +870,27 @@ export function MetricsPage() {
 
 export function ActivityPage() {
   const { data, isLoading, error } = useActivity();
-  if (isLoading && !data) return <div className="empty">Loading activity…</div>;
+  if (isLoading && !data)
+    return <EmptyState icon={LoaderCircle} title="Loading activity…" />;
   if (error)
-    return <Empty title="Activity unavailable" description={error.message} />;
+    return (
+      <EmptyState
+        icon={AlertTriangle}
+        title="Activity unavailable"
+        description={error.message}
+      />
+    );
   const items = (data?.items ?? []) as ActivityPoint[];
+
+  if (!items.length) {
+    return (
+      <EmptyState
+        icon={SquareActivity}
+        title="No activity yet"
+        description="Activity will appear once jobs start moving through pg-boss."
+      />
+    );
+  }
 
   return (
     <Section title="Activity" subtitle="Job activity over time">
@@ -682,22 +914,26 @@ export function SettingsPage() {
   return (
     <div className="section">
       <div className="stats-grid">
-        <Stat
-          label="Schema"
+        <SummaryCard
+          title="Schema"
           value={data?.schema ?? "pgboss"}
-          hint="Database schema"
+          subtitle="Database schema"
         />
-        <Stat
-          label="Readonly"
+        <SummaryCard
+          title="Readonly"
           value={data?.readonly ? "Yes" : "No"}
-          hint={data?.readonly ? "Browse-only" : "Actions enabled"}
+          subtitle={data?.readonly ? "Browse-only" : "Actions enabled"}
         />
-        <Stat
-          label="Has Boss"
+        <SummaryCard
+          title="Has Boss"
           value={data?.hasBoss ? "Yes" : "No"}
-          hint="Connected instance"
+          subtitle="Connected instance"
         />
-        <Stat label="Tags" value={tags.length} hint="Configured tag fields" />
+        <SummaryCard
+          title="Tags"
+          value={tags.length}
+          subtitle="Configured tag fields"
+        />
       </div>
       <Section title="Tags" subtitle="Available tag fields">
         <div className="stack">
