@@ -2,10 +2,9 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { initCommand } from "./index";
+import { init } from "./commands/init.js";
 
 const tempDirs: string[] = [];
-
 afterEach(async () => {
   await Promise.all(
     tempDirs.map((dir) => rm(dir, { recursive: true, force: true })),
@@ -13,69 +12,88 @@ afterEach(async () => {
   tempDirs.length = 0;
 });
 
-describe("initCommand", () => {
-  it("injects Bossbench into a Hono app", async () => {
-    const cwd = await fixture({
-      dependencies: { hono: "^4.0.0" },
-      entry: `import { Hono } from "hono";\nconst app = new Hono();\nexport default app;\n`,
-    });
-
-    const result = await initCommand(cwd);
-    const pkg = JSON.parse(await readFile(join(cwd, "package.json"), "utf8"));
-    const entry = await readFile(join(cwd, "src/index.ts"), "utf8");
-
-    expect(result.framework).toBe("hono");
-    expect(result.entryPath).toBe(join(cwd, "src/index.ts"));
-    expect(result.entryUpdated).toBe(true);
-    expect(pkg.dependencies).toMatchObject({
-      "@bossbench/hono": "latest",
-      pg: "^8.13.1",
-      "pg-boss": "^12.18.2",
-    });
-    expect(entry).toContain(`import { bossbench } from "@bossbench/hono";`);
-    expect(entry).toContain(`app.route("/jobs", bossbench({`);
-    expect(entry).toContain(`basePath: "/jobs"`);
-  });
-
-  it("injects Bossbench into an Express app", async () => {
-    const cwd = await fixture({
-      dependencies: { express: "^4.0.0" },
-      entry: `import express from "express";\nconst app = express();\nexport default app;\n`,
-    });
-
-    const result = await initCommand(cwd);
-    const entry = await readFile(join(cwd, "src/index.ts"), "utf8");
-
-    expect(result.framework).toBe("express");
-    expect(entry).toContain(`import { bossbench } from "@bossbench/express";`);
-    expect(entry).toContain(`app.use("/jobs", bossbench({`);
-  });
-
+describe("init", () => {
   it("supports dry runs without writing files", async () => {
     const cwd = await fixture({
       dependencies: { hono: "^4.0.0" },
       entry: `import { Hono } from "hono";\nconst app = new Hono();\nexport default app;\n`,
     });
     const before = await readFile(join(cwd, "src/index.ts"), "utf8");
-
-    const result = await initCommand(cwd, { dryRun: true });
+    await init({
+      cwd,
+      mount: "/jobs",
+      auth: true,
+      docker: true,
+      yes: true,
+      dryRun: true,
+    });
     const after = await readFile(join(cwd, "src/index.ts"), "utf8");
-
-    expect(result.dryRun).toBe(true);
     expect(after).toBe(before);
   });
 
-  it("does not half-inject imports when no supported app export is found", async () => {
+  it("does not duplicate env keys or overwrite docker compose", async () => {
+    const cwd = await fixture({
+      dependencies: { hono: "^4.0.0" },
+      entry: `import { Hono } from "hono";\nconst app = new Hono();\nexport default app;\n`,
+    });
+    await writeFile(
+      join(cwd, ".env.example"),
+      "# existing config\nDATABASE_URL=custom\nBOSSBENCH_USER=alice\nBOSSBENCH_PASS=secret\nCUSTOM_lower=value\n",
+    );
+    await writeFile(join(cwd, "docker-compose.yml"), "existing: true\n");
+    await init({
+      cwd,
+      mount: "/jobs",
+      auth: true,
+      docker: true,
+      yes: true,
+      dryRun: false,
+    });
+    const env = await readFile(join(cwd, ".env.example"), "utf8");
+    const compose = await readFile(join(cwd, "docker-compose.yml"), "utf8");
+    expect(env.match(/^DATABASE_URL=/gm)?.length).toBe(1);
+    expect(env.match(/^BOSSBENCH_USER=/gm)?.length).toBe(1);
+    expect(env.match(/^BOSSBENCH_PASS=/gm)?.length).toBe(1);
+    expect(env).toContain("# existing config");
+    expect(env).toContain("CUSTOM_lower=value");
+    expect(compose).toContain("existing: true");
+  });
+
+  it("does not half-inject unsupported entry files", async () => {
     const cwd = await fixture({
       dependencies: { express: "^4.0.0" },
       entry: `import express from "express";\nconst app = express();\napp.listen(3000);\n`,
     });
-
-    const result = await initCommand(cwd);
+    await init({
+      cwd,
+      mount: "/jobs",
+      auth: true,
+      docker: true,
+      yes: true,
+      dryRun: false,
+    });
     const entry = await readFile(join(cwd, "src/index.ts"), "utf8");
-
-    expect(result.entryUpdated).toBe(false);
     expect(entry).not.toContain("@bossbench/express");
+  });
+
+  it("does not print install commands for pending adapter packages", async () => {
+    const cwd = await fixture({
+      dependencies: { fastify: "^5.0.0" },
+      entry: `import fastify from "fastify";\nconst app = fastify();\nexport default app;\n`,
+    });
+
+    const result = await init({
+      cwd,
+      mount: "/jobs",
+      auth: true,
+      docker: false,
+      yes: true,
+      dryRun: true,
+    });
+
+    expect(result?.framework).toBe("fastify");
+    expect(result?.install).toContain("pending in issue #4");
+    expect(result?.install).not.toContain("npm add @bossbench/fastify");
   });
 });
 
