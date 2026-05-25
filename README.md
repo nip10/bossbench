@@ -22,6 +22,16 @@ npx @bossbench/cli init
 
 The CLI auto-injects Hono, Express, Fastify, Elysia, NestJS, and Next.js projects.
 
+## Examples
+
+- `examples/demo` - seeded Hono demo
+- `examples/with-hono`
+- `examples/with-express`
+- `examples/with-fastify`
+- `examples/with-elysia`
+- `examples/with-nestjs`
+- `examples/with-next`
+
 ## Local demo
 
 Use the standalone demo to test the dashboard with seeded pg-boss data:

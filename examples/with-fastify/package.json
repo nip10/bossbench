@@ -1,0 +1,22 @@
+{
+  "name": "@bossbench/example-with-fastify",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "start": "bun run src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@bossbench/fastify": "workspace:*",
+    "fastify": "^5.2.1",
+    "pg": "^8.13.1",
+    "pg-boss": "^12.18.2"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.3",
+    "@types/pg": "^8.11.10",
+    "typescript": "^5.7.2"
+  }
+}
