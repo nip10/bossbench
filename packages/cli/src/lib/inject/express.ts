@@ -28,7 +28,7 @@ if (!bossbenchUser || !bossbenchPass) throw new Error("Set BOSSBENCH_USER and BO
   const authOption = withAuth
     ? `  auth: { username: bossbenchUser, password: bossbenchPass },\n`
     : "";
-  const snippet = `${authSetup}app.use(${JSON.stringify(mountPath)}, bossbench({\n  db: process.env.DATABASE_URL,\n  basePath: ${JSON.stringify(mountPath)},\n${authOption}  // TODO: pass a PgBoss instance as 'boss' for actions\n}));`;
+  const snippet = `${authSetup}app.use(${JSON.stringify(mountPath)}, bossbench({\n  db: process.env.DATABASE_URL,\n  basePath: ${JSON.stringify(mountPath)},\n${authOption}${withAuth ? "" : "  allowUnauthenticated: true,\n"}  // TODO: pass a PgBoss instance as 'boss' for actions\n}));`;
   const out = `${src.includes(`import { bossbench } from "@bossbench/express";`) ? "" : `import { bossbench } from "@bossbench/express";\n`}${src.replace(/export\s+default\s+app\s*;?/, `${snippet}\n\nexport default app;`)}`;
   return { ok: true, path: entry, source: out };
 }

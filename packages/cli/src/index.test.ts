@@ -76,7 +76,7 @@ describe("init", () => {
     expect(entry).not.toContain("@bossbench/express");
   });
 
-  it("does not print install commands for pending adapter packages", async () => {
+  it("prints install commands for available adapter packages", async () => {
     const cwd = await fixture({
       dependencies: { fastify: "^5.0.0" },
       entry: `import fastify from "fastify";\nconst app = fastify();\nexport default app;\n`,
@@ -92,8 +92,28 @@ describe("init", () => {
     });
 
     expect(result?.framework).toBe("fastify");
-    expect(result?.install).toContain("pending in issue #4");
-    expect(result?.install).not.toContain("npm add @bossbench/fastify");
+    expect(result?.install).toContain("npm add @bossbench/fastify");
+  });
+
+  it("includes a default Nest platform adapter in install guidance", async () => {
+    const cwd = await fixture({
+      dependencies: { "@nestjs/core": "^10.0.0" },
+      entry: `import { NestFactory } from "@nestjs/core";\nconst app = await NestFactory.create(AppModule);\nawait app.listen(3000);\n`,
+    });
+
+    const result = await init({
+      cwd,
+      mount: "/jobs",
+      auth: true,
+      docker: false,
+      yes: true,
+      dryRun: true,
+    });
+
+    expect(result?.framework).toBe("nestjs");
+    expect(result?.install).toContain(
+      "@bossbench/nestjs @bossbench/express @bossbench/fastify",
+    );
   });
 });
 

@@ -69,13 +69,20 @@ describe("injectors", () => {
     expect(result.source.match(/@bossbench\/hono/g)?.length).toBe(1);
   });
 
-  it("returns a safe Next.js scaffold hint", async () => {
+  it("returns a Next.js scaffold", async () => {
     const cwd = await mkdtemp(join(tmpdir(), "bossbench-next-"));
     dirs.push(cwd);
     await mkdir(join(cwd, "src/app"), { recursive: true });
-    const result = await nextInjector({ cwd, mountPath: "/jobs" });
-    expect(result.ok).toBe(false);
-    expect(result.reason).toContain("src/app/jobs/[[...bossbench]]/route.ts");
+    const result = await nextInjector({
+      cwd,
+      mountPath: "/jobs",
+      withAuth: true,
+    });
+    expect(result.ok).toBe(true);
+    expect(result.path).toContain("src/app/jobs/[[...bossbench]]/route.ts");
+    expect(result.source).toContain(
+      `export const { GET, POST, PUT, PATCH, DELETE } = bossbench(`,
+    );
   });
 
   it("warns Pages Router projects that App Router is required", async () => {
@@ -83,25 +90,61 @@ describe("injectors", () => {
     dirs.push(cwd);
     await mkdir(join(cwd, "src/pages"), { recursive: true });
 
-    const result = await nextInjector({ cwd, mountPath: "/jobs" });
+    const result = await nextInjector({
+      cwd,
+      mountPath: "/jobs",
+      withAuth: true,
+    });
 
     expect(result.ok).toBe(false);
     expect(result.reason).toContain("Pages Router");
     expect(result.reason).toContain("App Router");
   });
 
-  it("is safe for pending framework injectors", async () => {
+  it("generates live framework injectors", async () => {
     for (const framework of ["fastify", "elysia", "nestjs"] as const) {
+      const entry = await appFixture(
+        `const app = {} as any;\nexport default app;\n`,
+      );
       const result = await INJECTORS[framework]({
-        cwd: "/tmp/project",
-        entry: "/tmp/project/src/index.ts",
+        cwd: entry.replace(/\/src\/index\.ts$/, ""),
+        entry,
         mountPath: "/jobs",
         withAuth: true,
       });
-      expect(result.ok).toBe(false);
-      expect(result.reason).toContain("issue #4");
-      expect(result.reason).toContain("/jobs");
+      expect(result.ok).toBe(true);
+      expect(result.source).toContain(`basePath: "/jobs"`);
+      expect(result.source).toContain(`process.env.BOSSBENCH_USER`);
     }
+  });
+
+  it("can scaffold unauthenticated snippets", async () => {
+    const entry = await appFixture(
+      `const app = {} as any;\nexport default app;\n`,
+    );
+    const result = await INJECTORS.fastify({
+      cwd: entry.replace(/\/src\/index\.ts$/, ""),
+      entry,
+      mountPath: "/jobs",
+      withAuth: false,
+    });
+    expect(result.source).toContain(`allowUnauthenticated: true`);
+  });
+
+  it("scaffolds Next route files with auth when requested", async () => {
+    const cwd = await mkdtemp(join(tmpdir(), "bossbench-next-auth-"));
+    dirs.push(cwd);
+    await mkdir(join(cwd, "app"), { recursive: true });
+
+    const result = await nextInjector({
+      cwd,
+      mountPath: "/jobs",
+      withAuth: true,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.source).toContain("BOSSBENCH_USER");
+    expect(result.source).not.toContain("allowUnauthenticated: true");
   });
 });
 

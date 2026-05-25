@@ -6,7 +6,7 @@ Initializer for Bossbench.
 npx @bossbench/cli init
 ```
 
-The CLI auto-injects Hono and Express projects, and detects Fastify, Elysia, NestJS, and Next.js projects for manual-ready scaffolding until their adapter packages land in issue #4.
+The CLI auto-injects Hono, Express, Fastify, Elysia, NestJS, and Next.js projects.
 
 Flags:
 

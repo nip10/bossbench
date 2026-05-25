@@ -7,7 +7,7 @@ Bossbench is inspired by Workbench's embedded dashboard model, but is pg-boss-na
 ## Features
 
 - Workbench-style embedded dashboard UI.
-- Hono and Express adapters now; Fastify, Elysia, NestJS, and Next.js are tracked for parity.
+- Hono, Express, Fastify, Elysia, NestJS, and Next.js adapters.
 - Queues, jobs, schedules, warnings, dead-letter, metrics, activity, and settings screens.
 - Actions for retry, cancel, resume, delete, schedule, and unschedule when a `PgBoss` instance is provided.
 - SQL-backed pagination, filtering, search, and configured JSON tag filters.
@@ -20,7 +20,7 @@ Bossbench is inspired by Workbench's embedded dashboard model, but is pg-boss-na
 npx @bossbench/cli init
 ```
 
-The CLI auto-injects Hono and Express projects. Fastify, Elysia, NestJS, and Next.js are detected and reported as manual-ready scaffolds until adapter packages land in issue #4.
+The CLI auto-injects Hono, Express, Fastify, Elysia, NestJS, and Next.js projects.
 
 ## Local demo
 

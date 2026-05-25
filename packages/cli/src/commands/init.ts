@@ -1,5 +1,5 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { join, relative, resolve } from "node:path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join, relative, resolve } from "node:path";
 import { confirm, intro, isCancel, note, outro, text } from "@clack/prompts";
 import pc from "picocolors";
 import { detectFramework } from "../lib/framework-detect.js";
@@ -107,6 +107,7 @@ export async function init(opts: InitOptions): Promise<InitResult | undefined> {
   if (!opts.dryRun) {
     writeFileSync(envPath, env);
     if (injection.ok && injection.path) {
+      mkdirSync(dirname(injection.path), { recursive: true });
       writeFileSync(injection.path, injection.source);
     }
     if (writeDocker && !existsSync(join(cwd, "docker-compose.yml"))) {
@@ -114,9 +115,11 @@ export async function init(opts: InitOptions): Promise<InitResult | undefined> {
     }
   }
 
-  const install = adapterPackageIsAvailable(detected.framework)
-    ? `${pm} add ${detected.adapterPackage} pg pg-boss`
-    : `${detected.adapterPackage} is pending in issue #4; install pg pg-boss now and add the adapter after it lands`;
+  const install = installCommand(
+    pm,
+    detected.framework,
+    detected.adapterPackage,
+  );
   note(
     [
       `Framework: ${detected.framework}`,
@@ -163,7 +166,19 @@ function buildEnvExample(existing: string | undefined, withAuth: boolean) {
 }
 
 function adapterPackageIsAvailable(framework: string) {
-  return framework === "hono" || framework === "express";
+  return ["hono", "express", "fastify", "elysia", "nestjs", "next"].includes(
+    framework,
+  );
+}
+
+function installCommand(pm: string, framework: string, adapterPackage: string) {
+  const packages =
+    framework === "nestjs"
+      ? `${adapterPackage} @bossbench/express @bossbench/fastify pg pg-boss`
+      : `${adapterPackage} pg pg-boss`;
+  return adapterPackageIsAvailable(framework)
+    ? `${pm} add ${packages}`
+    : `${adapterPackage} is pending in issue #4; install pg pg-boss now and add the adapter after it lands`;
 }
 function dockerCompose() {
   return `services:\n  postgres:\n    image: postgres:16-alpine\n    environment:\n      POSTGRES_PASSWORD: postgres\n      POSTGRES_DB: postgres\n    ports:\n      - "5432:5432"\n`;
