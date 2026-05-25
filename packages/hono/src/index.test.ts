@@ -1,3 +1,4 @@
+import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
 import { bossbench } from "./index";
 
@@ -30,5 +31,22 @@ describe("hono adapter", () => {
 
     expect(unauthorized.status).toBe(401);
     expect(authorized.status).toBe(200);
+  });
+
+  it("injects base path into SPA HTML for mounted dashboards", async () => {
+    const app = new Hono();
+    app.route(
+      "/jobs",
+      bossbench({
+        db: "postgres://example",
+        allowUnauthenticated: true,
+      }),
+    );
+
+    const res = await app.request("/jobs/queues/email");
+    const html = await res.text();
+
+    expect(res.status).toBe(200);
+    expect(html).toContain('<base href="/jobs/">');
   });
 });

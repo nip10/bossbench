@@ -3,6 +3,11 @@
   "private": true,
   "version": "0.0.0",
   "description": "Open-source pg-boss dashboard. Drop-in for modern Node backends.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nip10/bossbench.git"
+  },
   "workspaces": [
     "apps/*",
     "packages/*",
@@ -12,6 +17,7 @@
     "build": "turbo build",
     "dev": "turbo dev --parallel",
     "test": "turbo test",
+    "test:integration": "bun run --filter=@bossbench/core test:integration",
     "typecheck": "turbo typecheck",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",

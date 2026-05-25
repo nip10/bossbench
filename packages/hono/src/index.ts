@@ -38,15 +38,56 @@ export function bossbench(options: BossbenchOptions) {
       "Content-Type": contentType(path),
     });
   });
-  app.get("*", (c) => c.html(indexHtml()));
+  app.get("*", (c) =>
+    c.html(indexHtml(resolveBasePath(c.req.path, core.options.basePath))),
+  );
   return app;
 }
 
-function indexHtml() {
+function indexHtml(basePath: string) {
   const path = `${UI_DIST_PATH}/index.html`;
-  return existsSync(path)
+  const html = existsSync(path)
     ? readFileSync(path, "utf8")
-    : '<!doctype html><html><body><div id="root"></div></body></html>';
+    : '<!doctype html><html><head></head><body><div id="root"></div></body></html>';
+  return html.replace("<head>", `<head>\n    <base href="${basePath}">`);
+}
+
+function resolveBasePath(path: string, configured?: string) {
+  if (configured && configured !== "/") return withTrailingSlash(configured);
+  const segments = path.split("/").filter(Boolean);
+  const routeSegments = new Set([
+    "queues",
+    "jobs",
+    "schedules",
+    "dead-letter",
+    "warnings",
+    "metrics",
+    "activity",
+    "settings",
+  ]);
+  const lastRouteIndex = segments.reduce(
+    (last, segment, index) => (routeSegments.has(segment) ? index : last),
+    -1,
+  );
+
+  if (lastRouteIndex < 0) return withTrailingSlash(path || "/");
+  if (lastRouteIndex === 0 && segments.length > 1) return "/";
+
+  const baseSegments = segments.slice(0, lastRouteIndex);
+  if (
+    baseSegments.length === 0 &&
+    segments.length === 1 &&
+    segments[0] === "jobs"
+  ) {
+    return "/jobs/";
+  }
+  return withTrailingSlash(
+    baseSegments.length ? `/${baseSegments.join("/")}` : "/",
+  );
+}
+
+function withTrailingSlash(path: string) {
+  return path.endsWith("/") ? path : `${path}/`;
 }
 function safeAssetPath(path: string) {
   const file = path.split("/assets/")[1] ?? "";

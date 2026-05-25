@@ -37,6 +37,20 @@ describe("express adapter", () => {
     expect(unauthorized.status).toBe(401);
     expect(authorized.status).toBe(200);
   });
+
+  it("injects base path into SPA HTML for mounted dashboards", async () => {
+    const app = express();
+    app.use(
+      "/jobs",
+      bossbench({ db: "postgres://example", allowUnauthenticated: true }),
+    );
+
+    const res = await request(app, "/jobs/queues/email");
+    const html = await res.text();
+
+    expect(res.status).toBe(200);
+    expect(html).toContain('<base href="/jobs/">');
+  });
 });
 
 async function request(

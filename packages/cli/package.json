@@ -1,10 +1,22 @@
 {
   "name": "@bossbench/cli",
   "version": "0.1.0",
+  "description": "Initializer CLI for Bossbench pg-boss dashboards.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nip10/bossbench.git",
+    "directory": "packages/cli"
+  },
   "type": "module",
   "bin": {
     "bossbench": "./dist/index.js"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsup",
     "test": "vitest run --passWithNoTests",

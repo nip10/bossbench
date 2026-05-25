@@ -30,7 +30,9 @@ export function bossbench(options: BossbenchOptions): ExpressRouter {
   );
   r.get("/assets/*", serveAssets());
   r.get("/config", (_req, res) => res.json(core.getConfig()));
-  r.get("*", (_req, res) => res.type("html").send(shell()));
+  r.get("*", (req, res) =>
+    res.type("html").send(shell(req.baseUrl || core.options.basePath)),
+  );
   return r;
 }
 
@@ -83,11 +85,19 @@ function auth(core: BossbenchCore): RequestHandler {
     next();
   };
 }
-function shell() {
+function shell(basePath = "/") {
   const path = `${UI_DIST_PATH}/index.html`;
-  return existsSync(path)
+  const html = existsSync(path)
     ? readFileSync(path, "utf8")
     : '<!doctype html><html><body><div id="root"></div></body></html>';
+  return html.replace(
+    "<head>",
+    `<head>\n    <base href="${withTrailingSlash(basePath)}">`,
+  );
+}
+
+function withTrailingSlash(path: string) {
+  return path.endsWith("/") ? path : `${path}/`;
 }
 function serveAssets(): RequestHandler {
   return (req: Request, res: Response) => {
