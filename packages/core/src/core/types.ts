@@ -113,3 +113,8 @@ export interface ActivityPoint {
   completed: number;
   failed: number;
 }
+
+export interface BulkJobActionResult {
+  succeeded: Array<{ id: string }>;
+  failed: Array<{ id: string; code: string; message: string }>;
+}

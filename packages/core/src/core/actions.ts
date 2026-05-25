@@ -15,6 +15,9 @@ export class PgBossActionService {
       );
     return this.boss;
   }
+  ensureAvailable() {
+    this.ensure();
+  }
   async retryJob(name: string, id: string) {
     return this.ensure().retry(name, id);
   }
