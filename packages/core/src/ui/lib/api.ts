@@ -1,6 +1,7 @@
 import type {
   ActivityPoint,
   BossbenchJobState,
+  BulkJobActionResult,
   JobSummary,
   OverviewStats,
   PaginatedResponse,
@@ -10,6 +11,8 @@ import type {
   ScheduleInfo,
   WarningInfo,
 } from "../../core/types";
+
+type MutationResponse<T> = { ok: true; result: T };
 
 const apiBase = `${getBasePath()}/api`.replace(/\/\/api$/, "/api");
 
@@ -47,19 +50,34 @@ export const api = {
     fetchJson<QueueDetail>(`/queues/${encodeURIComponent(name)}`),
   queueJobs: (name: string, filters?: QueryFilters) =>
     fetchJson<PaginatedResponse<JobSummary>>(
-      `/queues/${encodeURIComponent(name)}/jobs${query(filters)}`,
+      `/queues/${encodeURIComponent(name)}/jobs${buildJobsQuery(filters)}`,
     ),
   jobs: (filters?: QueryFilters) =>
-    fetchJson<PaginatedResponse<JobSummary>>(`/jobs${query(filters)}`),
+    fetchJson<PaginatedResponse<JobSummary>>(`/jobs${buildJobsQuery(filters)}`),
   job: (id: string) => fetchJson<JobSummary>(`/jobs/${encodeURIComponent(id)}`),
   retryJob: (id: string) =>
     fetchJson(`/jobs/${encodeURIComponent(id)}/retry`, { method: "POST" }),
   cancelJob: (id: string) =>
     fetchJson(`/jobs/${encodeURIComponent(id)}/cancel`, { method: "POST" }),
+  bulkRetryJobs: (ids: string[]) =>
+    fetchJson<MutationResponse<BulkJobActionResult>>(`/jobs/bulk/retry`, {
+      method: "POST",
+      body: JSON.stringify({ ids }),
+    }),
+  bulkCancelJobs: (ids: string[]) =>
+    fetchJson<MutationResponse<BulkJobActionResult>>(`/jobs/bulk/cancel`, {
+      method: "POST",
+      body: JSON.stringify({ ids }),
+    }),
   resumeJob: (id: string) =>
     fetchJson(`/jobs/${encodeURIComponent(id)}/resume`, { method: "POST" }),
   deleteJob: (id: string) =>
     fetchJson(`/jobs/${encodeURIComponent(id)}/delete`, { method: "POST" }),
+  bulkDeleteJobs: (ids: string[]) =>
+    fetchJson<MutationResponse<BulkJobActionResult>>(`/jobs/bulk/delete`, {
+      method: "POST",
+      body: JSON.stringify({ ids }),
+    }),
   schedules: () => fetchJson<ScheduleInfo[]>("/schedules"),
   createSchedule: (body: { name: string; cron: string; data?: unknown }) =>
     fetchJson("/schedules", {
@@ -84,6 +102,8 @@ export const api = {
 };
 
 function getBasePath() {
+  if (typeof document === "undefined" || typeof window === "undefined")
+    return "";
   const base = document.querySelector("base")?.getAttribute("href");
   if (!base) return "";
   const pathname = new URL(base, window.location.href).pathname.replace(
@@ -93,7 +113,7 @@ function getBasePath() {
   return pathname === "/" ? "" : pathname;
 }
 
-function query(filters?: QueryFilters) {
+export function buildJobsQuery(filters?: QueryFilters): string {
   if (!filters) return "";
   const params = new URLSearchParams();
   if (filters.limit) params.set("limit", String(filters.limit));
@@ -104,6 +124,11 @@ function query(filters?: QueryFilters) {
   if (filters.from) params.set("from", filters.from);
   if (filters.to) params.set("to", filters.to);
   if (filters.sort) params.set("sort", filters.sort);
+  for (const [field, values] of Object.entries(filters.tags ?? {})) {
+    for (const value of values) {
+      if (value) params.append(`tag.${field}`, value);
+    }
+  }
   const text = params.toString();
   return text ? `?${text}` : "";
 }

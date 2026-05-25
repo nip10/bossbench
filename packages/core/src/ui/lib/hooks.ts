@@ -1,23 +1,56 @@
 import { useQuery } from "@tanstack/react-query";
-import type { BossbenchJobState } from "../../core/types";
+import type { QueryFilters } from "../../core/types";
 import { api } from "./api";
+
+export function normalizeJobsFilters(filters?: QueryFilters) {
+  if (!filters) return undefined;
+
+  const normalized: QueryFilters = {};
+
+  if (filters.q) normalized.q = filters.q;
+  if (filters.queue) normalized.queue = filters.queue;
+  if (filters.state) normalized.state = filters.state;
+  if (filters.from) normalized.from = filters.from;
+  if (filters.to) normalized.to = filters.to;
+  if (filters.sort) normalized.sort = filters.sort;
+  if (filters.limit !== undefined) normalized.limit = filters.limit;
+  if (filters.offset !== undefined) normalized.offset = filters.offset;
+
+  const tags = Object.entries(filters.tags ?? {}).reduce<
+    Record<string, string[]>
+  >((acc, [field, values]) => {
+    const cleaned = values.filter(Boolean);
+    if (cleaned.length) acc[field] = cleaned;
+    return acc;
+  }, {});
+
+  if (Object.keys(tags).length) normalized.tags = tags;
+
+  return normalized;
+}
 
 export const queryKeys = {
   config: ["config"] as const,
   overview: ["overview"] as const,
   queues: ["queues"] as const,
   queue: (name: string) => ["queue", name] as const,
-  jobs: (
-    q?: string,
-    state?: string,
-    queue?: string,
-    limit?: number,
-    sort?: string,
-  ) => ["jobs", q, state, queue, limit, sort] as const,
+  jobs: (filters?: QueryFilters) =>
+    ["jobs", normalizeJobsFilters(filters)] as const,
   job: (id: string) => ["job", id] as const,
   schedules: ["schedules"] as const,
   deadLetter: ["dead-letter"] as const,
   warnings: ["warnings"] as const,
+  metrics: ["metrics"] as const,
+  activity: ["activity"] as const,
+};
+
+export const queryPrefixes = {
+  jobs: ["jobs"] as const,
+  job: ["job"] as const,
+  queues: ["queues"] as const,
+  queue: ["queue"] as const,
+  overview: ["overview"] as const,
+  deadLetter: ["dead-letter"] as const,
   metrics: ["metrics"] as const,
   activity: ["activity"] as const,
 };
@@ -47,36 +80,12 @@ export const useQueue = (name: string) =>
     enabled: !!name,
     refetchInterval: 10_000,
   });
-export const useJobs = (filters?: {
-  q?: string;
-  state?: string;
-  queue?: string;
-  limit?: number;
-  sort?: string;
-}) =>
+export const useJobs = (filters?: QueryFilters) =>
   useQuery({
-    queryKey: queryKeys.jobs(
-      filters?.q,
-      filters?.state,
-      filters?.queue,
-      filters?.limit,
-      filters?.sort,
-    ),
+    queryKey: queryKeys.jobs(filters),
     queryFn: () => {
-      const state =
-        filters?.state && filters.state !== "all"
-          ? (filters.state as BossbenchJobState)
-          : undefined;
-      const query = {
-        ...(filters?.q ? { q: filters.q } : {}),
-        ...(filters?.queue ? { queue: filters.queue } : {}),
-        ...(filters?.limit ? { limit: filters.limit } : {}),
-        ...(filters?.sort ? { sort: filters.sort } : {}),
-        ...(state ? { state } : {}),
-      };
-      return filters?.queue
-        ? api.queueJobs(filters.queue, query)
-        : api.jobs(query);
+      const query = normalizeJobsFilters(filters);
+      return query?.queue ? api.queueJobs(query.queue, query) : api.jobs(query);
     },
     refetchInterval: 10_000,
   });

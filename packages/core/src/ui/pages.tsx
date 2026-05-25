@@ -1,3 +1,5 @@
+import type { QueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "@tanstack/react-router";
 import {
   AlertTriangle,
@@ -10,9 +12,18 @@ import {
   SearchX,
   SquareActivity,
 } from "lucide-react";
-import { isValidElement, type ReactNode, useState } from "react";
+import {
+  isValidElement,
+  type ReactNode,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type {
   ActivityPoint,
+  BossbenchJobState,
+  BulkJobActionResult,
   JobDetail,
   JobSummary,
   MetricPoint,
@@ -32,8 +43,12 @@ import {
   SortableHeader,
 } from "./components/shared/sortable-header";
 import { StatusBadge } from "./components/shared/status-badge";
+import { Button } from "./components/ui/button";
+import { Input } from "./components/ui/input";
 import { api } from "./lib/api";
 import {
+  queryKeys,
+  queryPrefixes,
   useActivity,
   useConfig,
   useDeadLetter,
@@ -77,16 +92,27 @@ function Section({
 function Table({
   columns,
   rows,
+  columnClassNames,
+  wrapperClassName,
+  tableClassName,
 }: {
   columns: ReactNode[];
   rows: ReactNode[][];
+  columnClassNames?: Array<string | undefined>;
+  wrapperClassName?: string;
+  tableClassName?: string;
 }) {
-  return (
-    <table className="table">
+  const table = (
+    <table className={tableClassName ? `table ${tableClassName}` : "table"}>
       <thead>
         <tr>
-          {columns.map((column) => (
-            <th key={nodeKey(column)}>{column}</th>
+          {columns.map((column, columnIndex) => (
+            <th
+              key={nodeKey(column)}
+              className={columnClassNames?.[columnIndex]}
+            >
+              {column}
+            </th>
           ))}
         </tr>
       </thead>
@@ -94,13 +120,22 @@ function Table({
         {rows.map((row) => (
           <tr key={rowKey(row)}>
             {row.map((cell, cellIndex) => (
-              <td key={cellKey(row, cell, cellIndex)}>{cell}</td>
+              <td
+                key={cellKey(row, cell, cellIndex)}
+                className={columnClassNames?.[cellIndex]}
+              >
+                {cell}
+              </td>
             ))}
           </tr>
         ))}
       </tbody>
     </table>
   );
+
+  if (!wrapperClassName) return table;
+
+  return <div className={wrapperClassName}>{table}</div>;
 }
 
 function rowKey(row: ReactNode[]) {
@@ -124,6 +159,46 @@ function nodeKey(node: ReactNode) {
 
 function cellKey(row: ReactNode[], cell: ReactNode, cellIndex: number) {
   return `${rowKey(row)}-${nodeKey(cell)}-${cellIndex}`;
+}
+
+type BulkActionState =
+  | {
+      status: "running";
+      label: string;
+    }
+  | {
+      status: "complete" | "error";
+      label: string;
+      message: string;
+    }
+  | null;
+
+function summarizeBulkFailures(
+  failed: BulkJobActionResult["failed"],
+  limit = 3,
+) {
+  if (!failed.length) return "";
+
+  const preview = failed
+    .slice(0, limit)
+    .map(({ id, code }) => `${id} (${code})`)
+    .join(", ");
+  const remaining = failed.length - limit;
+
+  return `Failed: ${preview}${remaining > 0 ? `, +${remaining} more` : ""}`;
+}
+
+async function invalidateBulkActionQueries(queryClient: QueryClient) {
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: queryPrefixes.jobs }),
+    queryClient.invalidateQueries({ queryKey: queryPrefixes.job }),
+    queryClient.invalidateQueries({ queryKey: queryPrefixes.queues }),
+    queryClient.invalidateQueries({ queryKey: queryPrefixes.queue }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.overview }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.deadLetter }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.metrics }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.activity }),
+  ]);
 }
 
 export function OverviewPage() {
@@ -328,18 +403,175 @@ export function QueuePage() {
   );
 }
 
+const JOB_STATES: Array<{ value: BossbenchJobState | "all"; label: string }> = [
+  { value: "all", label: "All states" },
+  { value: "created", label: "Created" },
+  { value: "retry", label: "Retry" },
+  { value: "active", label: "Active" },
+  { value: "completed", label: "Completed" },
+  { value: "cancelled", label: "Cancelled" },
+  { value: "failed", label: "Failed" },
+];
+
+const JOB_PAGE_SIZES = [10, 25, 50, 100] as const;
+
 export function RunsPage() {
+  const { data: config } = useConfig();
+  const { data: queues } = useQueues();
+  const queryClient = useQueryClient();
   const { searchQuery, setSearchQuery } = useDashboardSearch();
-  const [state, setState] = useState<string>("all");
+  const [queue, setQueue] = useState("all");
+  const [state, setState] = useState<BossbenchJobState | "all">("all");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [tagValues, setTagValues] = useState<Record<string, string>>({});
+  const [limit, setLimit] = useState(25);
+  const [offset, setOffset] = useState(0);
   const [sort, setSort] = useState<string | undefined>("created_on:desc");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [bulkActionState, setBulkActionState] = useState<BulkActionState>(null);
+  const headerSelectionRef = useRef<HTMLInputElement>(null);
+  const bulkActionInFlightRef = useRef(false);
   const currentSort = parseSort(sort);
-  const filters = {
-    ...(searchQuery ? { q: searchQuery } : {}),
-    ...(state === "all" ? {} : { state }),
-    limit: 100,
-    ...(sort ? { sort } : {}),
-  };
+  const configuredTags = useMemo(() => config?.tags ?? [], [config?.tags]);
+  const lastSearchQuery = useRef(searchQuery);
+  const shouldResetOffset = lastSearchQuery.current !== searchQuery;
+  const offsetForQuery = shouldResetOffset ? 0 : offset;
+
+  useEffect(() => {
+    setTagValues((current) => {
+      const next: Record<string, string> = {};
+      let changed = false;
+
+      for (const tag of configuredTags) {
+        const value = current[tag] ?? "";
+        next[tag] = value;
+        if (current[tag] !== value) changed = true;
+      }
+
+      for (const key of Object.keys(current)) {
+        if (!configuredTags.includes(key)) {
+          changed = true;
+          break;
+        }
+      }
+
+      return changed ? next : current;
+    });
+  }, [configuredTags]);
+
+  useEffect(() => {
+    if (lastSearchQuery.current !== searchQuery) {
+      lastSearchQuery.current = searchQuery;
+      setOffset(0);
+    }
+  }, [searchQuery]);
+
+  const tagFilters = useMemo(() => {
+    const filters: Record<string, string[]> = {};
+
+    for (const tag of configuredTags) {
+      const value = tagValues[tag]?.trim();
+      if (value) filters[tag] = [value];
+    }
+
+    return filters;
+  }, [configuredTags, tagValues]);
+
+  const filters = useMemo(
+    () => ({
+      ...(searchQuery ? { q: searchQuery } : {}),
+      ...(queue === "all" ? {} : { queue }),
+      ...(state === "all" ? {} : { state }),
+      ...(from ? { from } : {}),
+      ...(to ? { to } : {}),
+      ...(sort ? { sort } : {}),
+      limit,
+      offset: offsetForQuery,
+      ...(Object.keys(tagFilters).length ? { tags: tagFilters } : {}),
+    }),
+    [
+      searchQuery,
+      queue,
+      state,
+      from,
+      to,
+      sort,
+      limit,
+      offsetForQuery,
+      tagFilters,
+    ],
+  );
+
   const { data, isLoading, error } = useJobs(filters);
+  const lastLoadedTotal = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (data) lastLoadedTotal.current = data.total;
+  }, [data]);
+
+  const total = data?.total ?? lastLoadedTotal.current ?? 0;
+  const maxOffset = total > 0 ? Math.floor((total - 1) / limit) * limit : 0;
+  const safeOffset = data
+    ? Math.min(offsetForQuery, maxOffset)
+    : offsetForQuery;
+
+  useEffect(() => {
+    if (offset !== safeOffset) setOffset(safeOffset);
+  }, [offset, safeOffset]);
+
+  const rows = data?.items ?? [];
+  const pageStart = total ? safeOffset + 1 : 0;
+  const pageEnd = total ? Math.min(safeOffset + limit, total) : 0;
+  const queueOptions = queues ?? [];
+  const canGoPrevious = safeOffset > 0;
+  const canGoNext = total > safeOffset + limit;
+  const visibleIds = rows.map((job) => job.id);
+  const visibleSelectedCount = visibleIds.filter((id) =>
+    selectedIds.has(id),
+  ).length;
+  const allVisibleSelected =
+    visibleIds.length > 0 && visibleSelectedCount === visibleIds.length;
+  const someVisibleSelected = visibleSelectedCount > 0 && !allVisibleSelected;
+  const bulkActionsEnabled = !!config?.hasBoss && !config.readonly;
+  const isBulkActionRunning = bulkActionState?.status === "running";
+  const selectedCount = selectedIds.size;
+  const selectionResetKey = useMemo(
+    () =>
+      JSON.stringify({
+        searchQuery,
+        queue,
+        state,
+        from,
+        to,
+        sort,
+        limit,
+        offsetForQuery,
+        tagFilters,
+      }),
+    [
+      searchQuery,
+      queue,
+      state,
+      from,
+      to,
+      sort,
+      limit,
+      offsetForQuery,
+      tagFilters,
+    ],
+  );
+
+  useEffect(() => {
+    if (headerSelectionRef.current) {
+      headerSelectionRef.current.indeterminate = someVisibleSelected;
+    }
+  }, [someVisibleSelected]);
+
+  useEffect(() => {
+    if (selectionResetKey) setSelectedIds(new Set());
+  }, [selectionResetKey]);
+
   if (isLoading && !data)
     return <EmptyState icon={LoaderCircle} title="Loading jobs…" />;
   if (error)
@@ -350,91 +582,371 @@ export function RunsPage() {
         description={error.message}
       />
     );
-  const rows = data?.items ?? [];
+
+  const updateSearch = (value: string) => {
+    setOffset(0);
+    setSearchQuery(value);
+  };
+
+  const updateQueue = (value: string) => {
+    setOffset(0);
+    setQueue(value);
+  };
+
+  const updateState = (value: string) => {
+    setOffset(0);
+    setState(value as BossbenchJobState | "all");
+  };
+
+  const updateFrom = (value: string) => {
+    setOffset(0);
+    setFrom(value);
+  };
+
+  const updateTo = (value: string) => {
+    setOffset(0);
+    setTo(value);
+  };
+
+  const updateLimit = (value: string) => {
+    setOffset(0);
+    setLimit(Number(value));
+  };
+
+  const updateTag = (field: string, value: string) => {
+    setOffset(0);
+    setTagValues((current) => ({ ...current, [field]: value }));
+  };
+
+  const updateSort = (
+    field: string | undefined,
+    direction: "asc" | "desc" | undefined,
+  ) => {
+    setOffset(0);
+    setSort(field && direction ? createSort(field, direction) : undefined);
+  };
+
+  const toggleVisibleSelection = (checked: boolean) => {
+    if (isBulkActionRunning) return;
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      for (const id of visibleIds) {
+        if (checked) next.add(id);
+        else next.delete(id);
+      }
+      return next;
+    });
+  };
+
+  const toggleJobSelection = (id: string, checked: boolean) => {
+    if (isBulkActionRunning) return;
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+
+  const runBulkAction = async (
+    label: string,
+    action: (
+      ids: string[],
+    ) => Promise<{ ok: true; result: BulkJobActionResult }>,
+    ids: string[],
+  ) => {
+    if (bulkActionInFlightRef.current) return;
+
+    const selected = [...ids];
+    bulkActionInFlightRef.current = true;
+    setBulkActionState({ status: "running", label });
+    try {
+      const response = await action(selected);
+      setSelectedIds(new Set());
+      const failureSummary = summarizeBulkFailures(response.result.failed);
+      setBulkActionState({
+        status: "complete",
+        label,
+        message: `${label} complete: ${response.result.succeeded.length} succeeded, ${response.result.failed.length} failed.${failureSummary ? ` ${failureSummary}` : ""}`,
+      });
+      await invalidateBulkActionQueries(queryClient);
+    } catch (error) {
+      setBulkActionState({
+        status: "error",
+        label,
+        message: error instanceof Error ? error.message : `${label} failed`,
+      });
+    } finally {
+      bulkActionInFlightRef.current = false;
+    }
+  };
 
   return (
     <Section
       title="Jobs"
-      subtitle={`${data?.total ?? 0} matched`}
+      subtitle={`${total.toLocaleString()} matched${total ? ` • ${pageStart}-${pageEnd}` : ""}`}
       actions={
-        <SmartSearch
-          value={searchQuery}
-          onValueChange={setSearchQuery}
-          state={state}
-          onStateChange={setState}
-          placeholder="Search jobs…"
-          states={[
-            { value: "all", label: "All states" },
-            { value: "created", label: "Created" },
-            { value: "retry", label: "Retry" },
-            { value: "active", label: "Active" },
-            { value: "completed", label: "Completed" },
-            { value: "cancelled", label: "Cancelled" },
-            { value: "failed", label: "Failed" },
-          ]}
-        />
+        <div className="jobs-toolbar">
+          <SmartSearch
+            value={searchQuery}
+            onValueChange={updateSearch}
+            placeholder="Search jobs…"
+            disabled={isBulkActionRunning}
+          />
+          <div className="filter-grid">
+            <div className="job-filter">
+              <span>Queue</span>
+              <select
+                aria-label="Queue"
+                value={queue}
+                onChange={(event) => updateQueue(event.target.value)}
+                disabled={isBulkActionRunning}
+              >
+                <option value="all">All queues</option>
+                {queueOptions.map((item: { name: string }) => (
+                  <option key={item.name} value={item.name}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="job-filter">
+              <span>State</span>
+              <select
+                aria-label="State"
+                value={state}
+                onChange={(event) => updateState(event.target.value)}
+                disabled={isBulkActionRunning}
+              >
+                {JOB_STATES.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="job-filter">
+              <span>From</span>
+              <Input
+                aria-label="From"
+                type="datetime-local"
+                value={from}
+                onChange={(event) => updateFrom(event.target.value)}
+                disabled={isBulkActionRunning}
+              />
+            </div>
+            <div className="job-filter">
+              <span>To</span>
+              <Input
+                aria-label="To"
+                type="datetime-local"
+                value={to}
+                onChange={(event) => updateTo(event.target.value)}
+                disabled={isBulkActionRunning}
+              />
+            </div>
+            <div className="job-filter">
+              <span>Page size</span>
+              <select
+                aria-label="Page size"
+                value={String(limit)}
+                onChange={(event) => updateLimit(event.target.value)}
+                disabled={isBulkActionRunning}
+              >
+                {JOB_PAGE_SIZES.map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="pagination-row">
+            <div className="job-pagination">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() =>
+                  setOffset((current) => Math.max(0, current - limit))
+                }
+                disabled={!canGoPrevious || isBulkActionRunning}
+              >
+                Previous
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setOffset((current) => current + limit)}
+                disabled={!canGoNext || isBulkActionRunning}
+              >
+                Next
+              </Button>
+            </div>
+            <div className="job-pagination-info muted">
+              {total
+                ? `Showing ${pageStart}-${pageEnd} of ${total.toLocaleString()}`
+                : "No jobs matched yet"}
+            </div>
+          </div>
+          {configuredTags.length ? (
+            <div className="job-tag-grid">
+              {configuredTags.map((tag) => (
+                <div className="job-filter" key={tag}>
+                  <span>{tag}</span>
+                  <Input
+                    aria-label={`Filter ${tag}`}
+                    value={tagValues[tag] ?? ""}
+                    onChange={(event) => updateTag(tag, event.target.value)}
+                    placeholder={`Filter ${tag}`}
+                    disabled={isBulkActionRunning}
+                  />
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
       }
     >
+      {bulkActionState ? (
+        <section className="banner compact" aria-live="polite">
+          {bulkActionState.status === "running"
+            ? `${bulkActionState.label}…`
+            : bulkActionState.message}
+        </section>
+      ) : null}
+      {selectedCount ? (
+        <section
+          className="banner compact bulk-action-bar"
+          aria-label="Bulk job actions"
+        >
+          <div className="job-bulk-summary">
+            <strong>{selectedCount} selected</strong>
+            <span className="muted">
+              {bulkActionsEnabled
+                ? "Apply actions to the visible jobs on this page."
+                : "Bulk actions require a writable pg-boss instance."}
+            </span>
+          </div>
+          <div className="filters">
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={!bulkActionsEnabled || isBulkActionRunning}
+              onClick={() =>
+                void runBulkAction(
+                  "Retry selected",
+                  api.bulkRetryJobs,
+                  Array.from(selectedIds),
+                )
+              }
+            >
+              Retry selected
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={!bulkActionsEnabled || isBulkActionRunning}
+              onClick={() =>
+                void runBulkAction(
+                  "Cancel selected",
+                  api.bulkCancelJobs,
+                  Array.from(selectedIds),
+                )
+              }
+            >
+              Cancel selected
+            </Button>
+            <Button
+              type="button"
+              className="danger"
+              disabled={!bulkActionsEnabled || isBulkActionRunning}
+              onClick={() => {
+                const ids = Array.from(selectedIds);
+                if (
+                  !window.confirm(
+                    `Delete ${ids.length} selected job${ids.length === 1 ? "" : "s"}? This cannot be undone.`,
+                  )
+                ) {
+                  return;
+                }
+                void runBulkAction("Delete selected", api.bulkDeleteJobs, ids);
+              }}
+            >
+              Delete selected
+            </Button>
+          </div>
+        </section>
+      ) : null}
       <Table
+        wrapperClassName="jobs-table-scroll"
+        tableClassName="jobs-table"
+        columnClassNames={[
+          "checkbox-cell",
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+        ]}
         columns={[
+          <input
+            key="select"
+            ref={headerSelectionRef}
+            type="checkbox"
+            aria-label="Select visible jobs"
+            checked={allVisibleSelected}
+            disabled={!rows.length || isBulkActionRunning}
+            onChange={(event) => toggleVisibleSelection(event.target.checked)}
+          />,
           "ID",
           <SortableHeader
             key="name"
             field="name"
             label="Queue"
             currentSort={currentSort}
-            onSort={(field, direction) =>
-              setSort(
-                field && direction ? createSort(field, direction) : undefined,
-              )
-            }
+            onSort={updateSort}
           />,
           <SortableHeader
             key="state"
             field="state"
             label="State"
             currentSort={currentSort}
-            onSort={(field, direction) =>
-              setSort(
-                field && direction ? createSort(field, direction) : undefined,
-              )
-            }
+            onSort={updateSort}
           />,
           <SortableHeader
             key="created_on"
             field="created_on"
             label="Created"
             currentSort={currentSort}
-            onSort={(field, direction) =>
-              setSort(
-                field && direction ? createSort(field, direction) : undefined,
-              )
-            }
+            onSort={updateSort}
           />,
           <SortableHeader
             key="completed_on"
             field="completed_on"
             label="Completed"
             currentSort={currentSort}
-            onSort={(field, direction) =>
-              setSort(
-                field && direction ? createSort(field, direction) : undefined,
-              )
-            }
+            onSort={updateSort}
           />,
           <SortableHeader
             key="priority"
             field="priority"
             label="Priority"
             currentSort={currentSort}
-            onSort={(field, direction) =>
-              setSort(
-                field && direction ? createSort(field, direction) : undefined,
-              )
-            }
+            onSort={updateSort}
           />,
         ]}
         rows={rows.map((job: JobSummary) => [
+          <input
+            key={`${job.id}-select`}
+            type="checkbox"
+            aria-label={`Select job ${job.id}`}
+            checked={selectedIds.has(job.id)}
+            disabled={isBulkActionRunning}
+            onChange={(event) =>
+              toggleJobSelection(job.id, event.target.checked)
+            }
+          />,
           <Link
             key={job.id}
             to="/jobs/$jobId"
@@ -458,8 +970,13 @@ export function RunsPage() {
           icon={SearchX}
           title="No jobs matched"
           description={
-            searchQuery || state !== "all"
-              ? "Relax the search or state filter to find more jobs."
+            searchQuery ||
+            state !== "all" ||
+            queue !== "all" ||
+            from ||
+            to ||
+            Object.keys(tagFilters).length
+              ? "Relax the search or filters to find more jobs."
               : "No jobs have been recorded yet."
           }
         />

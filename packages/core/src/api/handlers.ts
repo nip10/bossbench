@@ -1,5 +1,9 @@
 import type { BossbenchCore } from "../core/core";
-import type { BossbenchJobState, QueryFilters } from "../core/types";
+import type {
+  BossbenchJobState,
+  BulkJobActionResult,
+  QueryFilters,
+} from "../core/types";
 
 export interface HandlerInput {
   params: Record<string, string>;
@@ -90,6 +94,45 @@ export function buildRouteTable(core: BossbenchCore): RouteDef[] {
       path: "/jobs",
       handler: async ({ query }) =>
         ok(await repository.listJobs(parseFilters(query))),
+    },
+    {
+      method: "post",
+      path: "/jobs/bulk/retry",
+      handler: async ({ body }) =>
+        mutate(async () =>
+          bulkJobAction(
+            repository,
+            actions,
+            actions.retryJob.bind(actions),
+            body,
+          ),
+        ),
+    },
+    {
+      method: "post",
+      path: "/jobs/bulk/cancel",
+      handler: async ({ body }) =>
+        mutate(async () =>
+          bulkJobAction(
+            repository,
+            actions,
+            actions.cancelJob.bind(actions),
+            body,
+          ),
+        ),
+    },
+    {
+      method: "post",
+      path: "/jobs/bulk/delete",
+      handler: async ({ body }) =>
+        mutate(async () =>
+          bulkJobAction(
+            repository,
+            actions,
+            actions.deleteJob.bind(actions),
+            body,
+          ),
+        ),
     },
     {
       method: "get",
@@ -335,6 +378,68 @@ async function jobAction(
   const job = await repository.getJob(id);
   if (!job) throw errorWithCode("JOB_NOT_FOUND", "Job not found");
   return action(job.name, job.id);
+}
+
+async function bulkJobAction(
+  repository: BossbenchCore["repository"],
+  actions: BossbenchCore["actions"],
+  action: (name: string, id: string) => Promise<unknown>,
+  body: unknown,
+): Promise<BulkJobActionResult> {
+  actions.ensureAvailable();
+  const ids = validateIds(body);
+  const result: BulkJobActionResult = { succeeded: [], failed: [] };
+
+  for (const id of ids) {
+    const job = await repository.getJob(id);
+    if (!job) {
+      result.failed.push({
+        id,
+        code: "JOB_NOT_FOUND",
+        message: "Job not found",
+      });
+      continue;
+    }
+
+    try {
+      await action(job.name, job.id);
+      result.succeeded.push({ id });
+    } catch (error: unknown) {
+      const code = errorCode(error);
+      if (code === "READONLY_MODE" || code === "BOSS_INSTANCE_REQUIRED") {
+        throw error;
+      }
+      result.failed.push({
+        id,
+        code: code ?? "ACTION_FAILED",
+        message: "Action failed",
+      });
+    }
+  }
+
+  return result;
+}
+
+function validateIds(body: unknown): string[] {
+  const ids =
+    body && typeof body === "object" && "ids" in body
+      ? (body as { ids?: unknown }).ids
+      : undefined;
+
+  if (
+    !Array.isArray(ids) ||
+    ids.length === 0 ||
+    ids.some((id) => typeof id !== "string")
+  ) {
+    throw errorWithCode("INVALID_FILTER", "Invalid job ids");
+  }
+
+  const normalized = ids.map((id) => (typeof id === "string" ? id : ""));
+  if (normalized.some((id) => id.length === 0)) {
+    throw errorWithCode("INVALID_FILTER", "Invalid job ids");
+  }
+
+  return normalized;
 }
 
 async function mutate(fn: () => Promise<unknown>): Promise<HandlerResult> {

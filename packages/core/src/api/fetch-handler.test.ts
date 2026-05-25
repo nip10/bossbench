@@ -45,6 +45,24 @@ describe("fetch handler", () => {
     expect(res.status).toBe(200);
     expect(core.actions.deleteJob).toHaveBeenCalledWith("email", "1");
   });
+
+  it("matches bulk routes before /jobs/:id", async () => {
+    const core = fakeCore({
+      getJob: vi.fn(async (id: string) => ({ id, name: `queue-${id}` })),
+    });
+    const fetch = createFetchHandler(core as unknown as BossbenchCore);
+
+    const res = await fetch(
+      new Request("http://x/api/jobs/bulk/retry", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ids: ["job-1"] }),
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(core.actions.retryJob).toHaveBeenCalledWith("queue-job-1", "job-1");
+  });
 });
 
 type RepositoryOverrides = Partial<{
@@ -76,6 +94,7 @@ function fakeCore(overrides: RepositoryOverrides = {}) {
       ...overrides,
     },
     actions: {
+      ensureAvailable: vi.fn(),
       retryJob: vi.fn(),
       cancelJob: vi.fn(),
       resumeJob: vi.fn(),
