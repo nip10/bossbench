@@ -1,0 +1,15 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["import", "typescript", "unicorn"],
+  "ignorePatterns": [
+    "node_modules/**",
+    "dist/**",
+    ".turbo/**",
+    "apps/*/dist/**",
+    "packages/*/dist/**"
+  ],
+  "rules": {
+    "eqeqeq": "warn",
+    "no-console": "off"
+  }
+}

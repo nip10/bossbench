@@ -221,7 +221,7 @@ async function mutate(c: Context, fn: () => Promise<unknown>) {
   }
 }
 function n(v: string | undefined) {
-  return v == null ? undefined : Number(v);
+  return v === null || v === undefined ? undefined : Number(v);
 }
 function safeMessage(e: unknown) {
   const code = getErrorCode(e);

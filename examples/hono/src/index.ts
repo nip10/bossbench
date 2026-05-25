@@ -1,6 +1,6 @@
 import { bossbench } from "@bossbench/hono";
 import { Hono } from "hono";
-import PgBoss from "pg-boss";
+import { PgBoss } from "pg-boss";
 
 const boss = process.env.DATABASE_URL
   ? new PgBoss({ connectionString: process.env.DATABASE_URL, schema: "pgboss" })

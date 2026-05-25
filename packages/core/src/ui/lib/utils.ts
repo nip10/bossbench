@@ -6,7 +6,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatRelativeTime(value: string | number | null | undefined) {
-  if (value == null) return "—";
+  if (value === null || value === undefined) return "—";
   const date = typeof value === "number" ? new Date(value) : new Date(value);
   if (Number.isNaN(date.getTime())) return String(value);
   const diff = Date.now() - date.getTime();

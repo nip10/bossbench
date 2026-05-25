@@ -7,4 +7,3 @@ export * from "./core/identifiers";
 export * from "./core/options";
 export * from "./core/repository";
 export * from "./core/types";
-export * from "./core/ui-shell";

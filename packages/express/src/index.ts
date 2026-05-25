@@ -45,7 +45,8 @@ function bridge(app: FetchApp): RequestHandler {
       if (
         req.method !== "GET" &&
         req.method !== "HEAD" &&
-        req.body != null &&
+        req.body !== null &&
+        req.body !== undefined &&
         Object.keys(req.body).length
       )
         init.body = JSON.stringify(req.body);

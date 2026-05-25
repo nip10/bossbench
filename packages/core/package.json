@@ -14,9 +14,12 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
   },
+  "sideEffects": false,
   "files": [
     "dist",
     "README.md",
@@ -25,7 +28,7 @@
   "scripts": {
     "build": "bun run build:ui && bun run build:lib",
     "build:lib": "tsup",
-    "build:ui": "vite build",
+    "build:ui": "rm -rf dist/ui && vite build",
     "dev": "tsup --watch",
     "test": "vitest run --passWithNoTests",
     "test:integration": "BOSSBENCH_DATABASE_URL=${BOSSBENCH_DATABASE_URL:-postgres://postgres:postgres@localhost:54329/bossbench} vitest run -c vitest.integration.config.ts",
@@ -76,5 +79,9 @@
   "peerDependencies": {
     "pg": ">=8.0.0",
     "pg-boss": ">=12.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   }
 }

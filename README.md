@@ -127,6 +127,18 @@ bun run test:integration
 bun run build
 ```
 
+## Releasing
+
+Bossbench uses Changesets for npm releases and conventional commits for commit hygiene.
+
+```bash
+bun run changeset
+bun run version-packages
+bun run release
+```
+
+CI runs oxlint, Biome, typechecks, unit tests, pg-boss/Postgres integration tests, and builds. Publishing runs through the `Release` GitHub Action and requires `NPM_TOKEN`.
+
 ## Packages
 
 - `@bossbench/core`

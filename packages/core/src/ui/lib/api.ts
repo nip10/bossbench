@@ -15,7 +15,7 @@ const apiBase = `${getBasePath()}/api`.replace(/\/\/api$/, "/api");
 
 async function fetchJson<T>(path: string, init?: RequestInit) {
   const response = await fetch(`${apiBase}${path}`, {
-    headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
+    headers: { "Content-Type": "application/json", ...init?.headers },
     ...init,
   });
   const payload = await response.json().catch(() => null);

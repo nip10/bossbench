@@ -303,14 +303,14 @@ function error(code: string, message: string) {
   return e;
 }
 function numberOrDefault(value: unknown, fallback: number) {
-  return value == null ? fallback : Number(value);
+  return value === null || value === undefined ? fallback : Number(value);
 }
 function numberOrNull(value: unknown) {
-  return value == null ? null : Number(value);
+  return value === null || value === undefined ? null : Number(value);
 }
 function stringOrNull(value: unknown) {
   if (value instanceof Date) return value.toISOString();
-  return value == null ? null : String(value);
+  return value === null || value === undefined ? null : String(value);
 }
 function getErrorCode(error: unknown) {
   if (!(typeof error === "object" && error !== null && "code" in error)) {

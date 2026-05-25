@@ -1,6 +1,6 @@
 import { bossbench } from "@bossbench/express";
 import express from "express";
-import PgBoss from "pg-boss";
+import { PgBoss } from "pg-boss";
 
 const app = express();
 const boss = process.env.DATABASE_URL
