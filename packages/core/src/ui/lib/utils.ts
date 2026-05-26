@@ -11,12 +11,11 @@ export function formatRelativeTime(value: string | number | null | undefined) {
   if (Number.isNaN(date.getTime())) return String(value);
   const diff = Date.now() - date.getTime();
   const abs = Math.abs(diff);
-  if (abs < 60_000)
-    return `${Math.round(abs / 1000)}s${diff >= 0 ? " ago" : ""}`;
-  if (abs < 3_600_000)
-    return `${Math.round(abs / 60_000)}m${diff >= 0 ? " ago" : ""}`;
-  if (abs < 86_400_000)
-    return `${Math.round(abs / 3_600_000)}h${diff >= 0 ? " ago" : ""}`;
+  const format = (amount: number, unit: string) =>
+    diff >= 0 ? `${amount}${unit} ago` : `in ${amount}${unit}`;
+  if (abs < 60_000) return format(Math.round(abs / 1000), "s");
+  if (abs < 3_600_000) return format(Math.round(abs / 60_000), "m");
+  if (abs < 86_400_000) return format(Math.round(abs / 3_600_000), "h");
   return date.toLocaleString();
 }
 
