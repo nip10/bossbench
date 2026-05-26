@@ -1,0 +1,52 @@
+# Bossbench
+
+> Bossbench is an open-source, MIT-licensed dashboard for pg-boss. It is Postgres-native: reads come from the pg-boss schema, while mutations are guarded through a live pg-boss instance.
+
+## Quick facts
+
+- **Project**: Bossbench — open-source pg-boss dashboard
+- **License**: MIT
+- **Source**: https://github.com/nip10/bossbench
+- **Install**: `npx @bossbench/cli init`
+- **Core package**: `@bossbench/core`
+- **Queue engine**: pg-boss, backed by PostgreSQL
+
+## What Bossbench includes
+
+- Embedded dashboard UI for Node.js apps using pg-boss.
+- Postgres-backed browsing for jobs, queues, schedules, future jobs, warnings, dead-letter jobs, metrics, and activity.
+- Guarded pg-boss actions for retry, cancel, resume, delete, schedule creation/deletion, and schedule run-now.
+- Read-only mode for safe inspection without mutations.
+- Browse-only mode when no live `PgBoss` instance is provided.
+- Framework adapters for Hono, Express, Fastify, Elysia, NestJS, and Next.js.
+
+## Supported frameworks
+
+- Hono — `@bossbench/hono`
+- Express — `@bossbench/express`
+- Fastify — `@bossbench/fastify`
+- Elysia — `@bossbench/elysia`
+- NestJS — `@bossbench/nestjs`
+- Next.js — `@bossbench/next`
+
+## Safety model
+
+Bossbench separates reads from writes. Reads use SQL against the pg-boss Postgres schema. Writes use pg-boss public APIs through a live `PgBoss` instance and are blocked when `readonly` is enabled or no boss instance is configured.
+
+## Common questions
+
+### What is Bossbench?
+
+Bossbench is a Postgres-native dashboard for pg-boss queues. It lets developers inspect jobs, queues, schedules, failures, warnings, and metrics from an embedded web UI.
+
+### Is Bossbench a BullMQ dashboard?
+
+No. Bossbench is for pg-boss and PostgreSQL. It is inspired by Workbench's dashboard experience, but it does not copy BullMQ-only concepts such as queue pause/resume, promote, or FlowProducer DAGs.
+
+### Can Bossbench run without write access?
+
+Yes. Bossbench supports read-only browsing and can inspect SQL data even when mutations are disabled. Mutations require both non-read-only configuration and a live `PgBoss` instance.
+
+### How do I install Bossbench?
+
+Use `npx @bossbench/cli init` or install the adapter for your framework, such as `@bossbench/hono`, `@bossbench/express`, `@bossbench/fastify`, `@bossbench/elysia`, `@bossbench/nestjs`, or `@bossbench/next`.
