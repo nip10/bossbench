@@ -3,6 +3,7 @@ import type {
   BossbenchJobState,
   BulkJobActionResult,
   JobSummary,
+  MetricsResponse,
   OverviewStats,
   PaginatedResponse,
   QueryFilters,
@@ -88,16 +89,7 @@ export const api = {
     fetchJson(`/schedules/${encodeURIComponent(name)}`, { method: "DELETE" }),
   deadLetter: () => fetchJson<PaginatedResponse<JobSummary>>("/dead-letter"),
   warnings: () => fetchJson<{ items: WarningInfo[] }>("/warnings"),
-  metrics: () =>
-    fetchJson<{
-      buckets: Array<{
-        bucket: string;
-        created: number;
-        completed: number;
-        failed: number;
-        retry: number;
-      }>;
-    }>("/metrics"),
+  metrics: () => fetchJson<MetricsResponse>("/metrics"),
   activity: () => fetchJson<{ items: ActivityPoint[] }>("/activity"),
 };
 
