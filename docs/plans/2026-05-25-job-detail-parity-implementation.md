@@ -376,3 +376,7 @@ Expected:
 - smoke exits 0.
 
 If Docker/Postgres is unavailable, document the exact failure and run all non-integration checks.
+
+## CI note
+
+This PR is expected to use the base CI workflow with full checkout history for commitlint.
