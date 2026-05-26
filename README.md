@@ -155,6 +155,10 @@ CI runs oxlint, Biome, typechecks, unit tests, pg-boss/Postgres integration test
 - `@bossbench/core`
 - `@bossbench/hono`
 - `@bossbench/express`
+- `@bossbench/fastify`
+- `@bossbench/elysia`
+- `@bossbench/nestjs`
+- `@bossbench/next`
 - `@bossbench/cli`
 
 ## License
