@@ -58,3 +58,17 @@ describe("queryKeys.jobs", () => {
     ]);
   });
 });
+
+describe("query key helpers", () => {
+  it("keys job search by trimmed query", () => {
+    expect(queryKeys.jobSearch(" invoice ")).toEqual(["job-search", "invoice"]);
+  });
+
+  it("keys tag values by field and limit", () => {
+    expect(queryKeys.tagValues("teamId", 10)).toEqual([
+      "tag-values",
+      "teamId",
+      10,
+    ]);
+  });
+});

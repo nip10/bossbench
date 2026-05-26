@@ -23,7 +23,11 @@ export function CommandDialog({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="overlay" />
-        <Dialog.Content className="dialog">{children}</Dialog.Content>
+        <Dialog.Content className="dialog">
+          <CommandPrimitive shouldFilter={false} label="Command palette">
+            {children}
+          </CommandPrimitive>
+        </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
   );

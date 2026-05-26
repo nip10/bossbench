@@ -162,7 +162,7 @@ function RootLayout() {
         event.key.toLowerCase() === "t"
       ) {
         event.preventDefault();
-        setIsDark((d) => !d);
+        setIsDark((d: boolean) => !d);
       }
     };
     document.addEventListener("keydown", onKeyDown);
@@ -208,6 +208,7 @@ function RootLayout() {
     ? `${config.schema ?? "pgboss"} • ${config.readonly || !config.hasBoss ? "browse-only" : "actions enabled"}`
     : "Loading…";
   const readonly = !!config?.readonly || !config?.hasBoss;
+  const configuredTags = config?.tags ?? [];
 
   if (isLoading || !config)
     return <div className="app-loading">Loading Bossbench…</div>;
@@ -220,9 +221,9 @@ function RootLayout() {
         <ShellSidebar>
           <Sidebar
             activeNav={nav}
-            queues={queues.map((q) => q.name)}
+            queues={queues.map((q: { name: string }) => q.name)}
             isDark={isDark}
-            onToggleTheme={() => setIsDark((d) => !d)}
+            onToggleTheme={() => setIsDark((d: boolean) => !d)}
           />
         </ShellSidebar>
         <ShellContent>
@@ -262,7 +263,8 @@ function RootLayout() {
         <CommandPalette
           open={commandOpen}
           onOpenChange={setCommandOpen}
-          queues={queues.map((q) => q.name)}
+          queues={queues.map((q: { name: string }) => q.name)}
+          tags={configuredTags}
           onNavigate={(to) => navigate({ to: to as never })}
           onSelectQueue={(queue) =>
             navigate({
@@ -270,8 +272,16 @@ function RootLayout() {
               params: { queueName: queue } as never,
             })
           }
+          onSelectJob={(jobId) =>
+            navigate({
+              to: "/jobs/$jobId",
+              params: { jobId } as never,
+            })
+          }
           searchQuery={searchQuery}
           onSearchQueryChange={setSearchQuery}
+          isDark={isDark}
+          onToggleTheme={() => setIsDark((d: boolean) => !d)}
         />
       </Shell>
     </SearchContext.Provider>

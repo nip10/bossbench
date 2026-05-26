@@ -113,3 +113,26 @@ describe("bulk job actions", () => {
     );
   });
 });
+
+describe("tag values", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("requests tag values with an optional limit", async () => {
+    const fetchMock = mockFetchJson(["alpha", "beta"]);
+
+    await expect(api.tagValues("teamId", 8)).resolves.toEqual([
+      "alpha",
+      "beta",
+    ]);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/api/tags/teamId/values?limit=8"),
+      expect.objectContaining({
+        headers: expect.any(Object),
+      }),
+    );
+  });
+});

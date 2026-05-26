@@ -27,7 +27,7 @@ const items = [
 
 export function Sidebar({
   activeNav,
-  queues: _queues,
+  queues,
   isDark,
   onToggleTheme,
 }: {
@@ -57,6 +57,27 @@ export function Sidebar({
           </Tooltip>
         ))}
       </div>
+      {queues.length ? (
+        <div className="sidebar-queues">
+          {queues.slice(0, 5).map((queue) => (
+            <Tooltip key={queue}>
+              <TooltipTrigger asChild>
+                <Link
+                  to="/queues/$queueName"
+                  params={{ queueName: queue } as never}
+                  className={`sidebar-queue-link${activeNav === "queues" ? " active" : ""}`}
+                  aria-label={`Open queue ${queue}`}
+                >
+                  <span className="mono">
+                    {queue.slice(0, 2).toUpperCase()}
+                  </span>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="right">{queue}</TooltipContent>
+            </Tooltip>
+          ))}
+        </div>
+      ) : null}
       <div className="sidebar-bottom">
         <Button variant="ghost" size="icon" onClick={onToggleTheme}>
           {isDark ? "☀" : "☾"}

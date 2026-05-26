@@ -36,6 +36,9 @@ export const queryKeys = {
   queue: (name: string) => ["queue", name] as const,
   jobs: (filters?: QueryFilters) =>
     ["jobs", normalizeJobsFilters(filters)] as const,
+  jobSearch: (query: string) => ["job-search", query.trim()] as const,
+  tagValues: (field: string, limit: number) =>
+    ["tag-values", field, limit] as const,
   job: (id: string) => ["job", id] as const,
   schedules: ["schedules"] as const,
   deadLetter: ["dead-letter"] as const,
@@ -88,6 +91,19 @@ export const useJobs = (filters?: QueryFilters) =>
       return query?.queue ? api.queueJobs(query.queue, query) : api.jobs(query);
     },
     refetchInterval: 10_000,
+  });
+export const useJobSearch = (query: string, enabled = true) =>
+  useQuery({
+    queryKey: queryKeys.jobSearch(query),
+    queryFn: () => api.jobs({ q: query.trim(), limit: 5 }),
+    enabled: enabled && !!query.trim(),
+  });
+export const useTagValues = (field: string, enabled = true, limit = 10) =>
+  useQuery({
+    queryKey: queryKeys.tagValues(field, limit),
+    queryFn: () => api.tagValues(field, limit),
+    enabled: enabled && !!field,
+    staleTime: 5 * 60 * 1000,
   });
 export const useJob = (id: string) =>
   useQuery({

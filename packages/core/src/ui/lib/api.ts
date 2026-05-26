@@ -91,6 +91,14 @@ export const api = {
   warnings: () => fetchJson<{ items: WarningInfo[] }>("/warnings"),
   metrics: () => fetchJson<MetricsResponse>("/metrics"),
   activity: () => fetchJson<{ items: ActivityPoint[] }>("/activity"),
+  tagValues: (field: string, limit?: number) => {
+    const params = new URLSearchParams();
+    if (limit !== undefined) params.set("limit", String(limit));
+    const query = params.toString();
+    return fetchJson<string[]>(
+      `/tags/${encodeURIComponent(field)}/values${query ? `?${query}` : ""}`,
+    );
+  },
 };
 
 function getBasePath() {
