@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import {
   isValidElement,
+  type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
   useEffect,
   useMemo,
@@ -65,6 +66,11 @@ import {
   useSchedules,
   useWarnings,
 } from "./lib/hooks";
+import {
+  buildJobExport,
+  jobExportFilename,
+  stringifyForClipboard,
+} from "./lib/job-detail";
 import { formatDurationMs, formatPercent, scaleValue } from "./lib/metrics";
 import { truncate } from "./lib/utils";
 import { useDashboardSearch } from "./router";
@@ -178,6 +184,13 @@ type BulkActionState =
     }
   | null;
 
+type JobDetailTab = "summary" | "payload" | "output" | "raw";
+
+type JobFeedbackState = {
+  kind: "running" | "success" | "error";
+  message: string;
+} | null;
+
 function summarizeBulkFailures(
   failed: BulkJobActionResult["failed"],
   limit = 3,
@@ -197,6 +210,22 @@ async function invalidateBulkActionQueries(queryClient: QueryClient) {
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: queryPrefixes.jobs }),
     queryClient.invalidateQueries({ queryKey: queryPrefixes.job }),
+    queryClient.invalidateQueries({ queryKey: queryPrefixes.queues }),
+    queryClient.invalidateQueries({ queryKey: queryPrefixes.queue }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.overview }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.deadLetter }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.metrics }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.activity }),
+  ]);
+}
+
+async function invalidateJobActionQueries(
+  queryClient: QueryClient,
+  jobId: string,
+) {
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: queryKeys.job(jobId) }),
+    queryClient.invalidateQueries({ queryKey: queryPrefixes.jobs }),
     queryClient.invalidateQueries({ queryKey: queryPrefixes.queues }),
     queryClient.invalidateQueries({ queryKey: queryPrefixes.queue }),
     queryClient.invalidateQueries({ queryKey: queryKeys.overview }),
@@ -992,9 +1021,13 @@ export function RunsPage() {
 
 export function JobPage() {
   const params = useParams({ strict: false }) as { jobId: string };
+  const queryClient = useQueryClient();
   const { data: config } = useConfig();
   const { data, isLoading, error } = useJob(params.jobId);
-  const [actionState, setActionState] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<JobDetailTab>("summary");
+  const [feedback, setFeedback] = useState<JobFeedbackState>(null);
+  const [actionInFlight, setActionInFlight] = useState(false);
+  const actionInFlightRef = useRef(false);
   if (isLoading && !data)
     return <EmptyState icon={LoaderCircle} title="Loading job…" />;
   if (error || !data)
@@ -1008,99 +1041,300 @@ export function JobPage() {
   const job = data as JobDetail;
   const actionsEnabled = !!config?.hasBoss && !config.readonly;
 
-  const runAction = async (label: string, action: () => Promise<unknown>) => {
-    setActionState(`${label}…`);
+  const copyText = async (label: string, text: string) => {
     try {
-      await action();
-      setActionState(`${label} complete. Refreshing…`);
-      window.setTimeout(() => window.location.reload(), 400);
-    } catch (error) {
-      setActionState(
-        error instanceof Error ? error.message : `${label} failed`,
-      );
+      await navigator.clipboard.writeText(text);
+      setFeedback({ kind: "success", message: `${label} copied.` });
+    } catch {
+      setFeedback({ kind: "error", message: `${label} copy failed.` });
     }
   };
 
+  const copyJson = (label: string, value: unknown) =>
+    copyText(label, stringifyForClipboard(value));
+
+  const exportJob = () => {
+    const payload = stringifyForClipboard(buildJobExport(job));
+    const blob = new Blob([payload], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = jobExportFilename(job.id);
+    anchor.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setFeedback({ kind: "success", message: "Job export downloaded." });
+  };
+
+  const runAction = async (label: string, action: () => Promise<unknown>) => {
+    if (actionInFlightRef.current) return;
+    actionInFlightRef.current = true;
+    setActionInFlight(true);
+    setFeedback({ kind: "running", message: `${label}…` });
+    try {
+      await action();
+      await invalidateJobActionQueries(queryClient, job.id);
+      setFeedback({ kind: "success", message: `${label} complete.` });
+    } catch (error) {
+      setFeedback({
+        kind: "error",
+        message: error instanceof Error ? error.message : `${label} failed`,
+      });
+    } finally {
+      actionInFlightRef.current = false;
+      setActionInFlight(false);
+    }
+  };
+
+  const deleteJob = () => {
+    if (!window.confirm(`Delete job ${job.id}? This cannot be undone.`)) return;
+    void runAction("Delete", () => api.deleteJob(job.id));
+  };
+
+  const tabs: Array<{ value: JobDetailTab; label: string }> = [
+    { value: "summary", label: "Summary" },
+    { value: "payload", label: "Payload" },
+    { value: "output", label: "Output" },
+    { value: "raw", label: "Raw" },
+  ];
+
+  const focusTab = (tab: JobDetailTab) => {
+    window.requestAnimationFrame(() => {
+      document.getElementById(`job-detail-tab-${tab}`)?.focus();
+    });
+  };
+
+  const selectTab = (tab: JobDetailTab, moveFocus = false) => {
+    setActiveTab(tab);
+    if (moveFocus) focusTab(tab);
+  };
+
+  const selectAdjacentTab = (direction: 1 | -1) => {
+    const index = tabs.findIndex((tab) => tab.value === activeTab);
+    const next = (index + direction + tabs.length) % tabs.length;
+    selectTab(tabs[next]?.value ?? "summary", true);
+  };
+
+  const handleTabKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+    if (event.key === "ArrowRight") {
+      event.preventDefault();
+      selectAdjacentTab(1);
+    }
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      selectAdjacentTab(-1);
+    }
+    if (event.key === "Home") {
+      event.preventDefault();
+      selectTab("summary", true);
+    }
+    if (event.key === "End") {
+      event.preventDefault();
+      selectTab("raw", true);
+    }
+  };
+
+  const metadataRows: Array<[string, ReactNode]> = [
+    ["Queue", job.queue],
+    ["State", <StatusBadge key="state" state={job.state} />],
+    ["Created", <RelativeTime key="created" timestamp={job.createdOn} />],
+    ["Started", <RelativeTime key="started" timestamp={job.startedOn} />],
+    ["Completed", <RelativeTime key="completed" timestamp={job.completedOn} />],
+    ["Priority", job.priority ?? "—"],
+    ["Retry Count", job.retryCount ?? "—"],
+    ["Retry Limit", job.retryLimit ?? "—"],
+    ["Singleton Key", job.singletonKey ?? "—"],
+    ["Expires In", job.expireInSeconds ?? "—"],
+    ["Dead Letter", job.deadLetter ? "Present" : "—"],
+  ];
+
+  const renderPanel = (tab: JobDetailTab, children: ReactNode) => (
+    <div
+      key={tab}
+      id={`job-detail-panel-${tab}`}
+      role="tabpanel"
+      aria-labelledby={`job-detail-tab-${tab}`}
+      className="job-detail-panel"
+      hidden={activeTab !== tab}
+    >
+      {children}
+    </div>
+  );
+
   return (
-    <div className="detail-grid">
-      <Section
-        title={job.name}
-        subtitle={job.id}
-        actions={
-          <div className="filters">
-            <StatusBadge state={job.state} />
-            <button
-              type="button"
-              className="button"
-              disabled={!actionsEnabled}
-              onClick={() => runAction("Retry", () => api.retryJob(job.id))}
-            >
-              Retry
-            </button>
-            <button
-              type="button"
-              className="button"
-              disabled={!actionsEnabled}
-              onClick={() => runAction("Cancel", () => api.cancelJob(job.id))}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="button"
-              disabled={!actionsEnabled}
-              onClick={() => runAction("Resume", () => api.resumeJob(job.id))}
-            >
-              Resume
-            </button>
-            <button
-              type="button"
-              className="button danger"
-              disabled={!actionsEnabled}
-              onClick={() => runAction("Delete", () => api.deleteJob(job.id))}
-            >
-              Delete
-            </button>
+    <div className="job-detail-page">
+      <section className="panel job-detail-header">
+        <div className="job-detail-title">
+          <div>
+            <p className="muted mono">{job.queue}</p>
+            <h2>{job.name}</h2>
           </div>
-        }
-      >
-        {actionState ? (
-          <div className="banner compact">{actionState}</div>
+          <StatusBadge state={job.state} />
+        </div>
+        <div className="job-detail-id-row">
+          <span className="mono">{job.id}</span>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => void copyText("Job ID", job.id)}
+          >
+            Copy ID
+          </Button>
+        </div>
+        <div className="job-detail-actions">
+          <Button type="button" variant="ghost" onClick={exportJob}>
+            Export JSON
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={!actionsEnabled || actionInFlight}
+            onClick={() => void runAction("Retry", () => api.retryJob(job.id))}
+          >
+            Retry
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={!actionsEnabled || actionInFlight}
+            onClick={() =>
+              void runAction("Cancel", () => api.cancelJob(job.id))
+            }
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={!actionsEnabled || actionInFlight}
+            onClick={() =>
+              void runAction("Resume", () => api.resumeJob(job.id))
+            }
+          >
+            Resume
+          </Button>
+          <Button
+            type="button"
+            className="danger"
+            disabled={!actionsEnabled || actionInFlight}
+            onClick={deleteJob}
+          >
+            Delete
+          </Button>
+        </div>
+        {!actionsEnabled ? (
+          <div className="muted">
+            Actions are disabled in browse-only mode or when no pg-boss instance
+            is attached.
+          </div>
         ) : null}
-        <Table
-          columns={["Field", "Value"]}
-          rows={[
-            ["Queue", job.queue],
-            ["State", <StatusBadge key="state" state={job.state} />],
-            [
-              "Created",
-              <RelativeTime key="created" timestamp={job.createdOn} />,
-            ],
-            [
-              "Started",
-              <RelativeTime key="started" timestamp={job.startedOn} />,
-            ],
-            [
-              "Completed",
-              <RelativeTime key="completed" timestamp={job.completedOn} />,
-            ],
-            ["Priority", job.priority ?? "—"],
-            ["Retry Count", job.retryCount ?? "—"],
-            ["Retry Limit", job.retryLimit ?? "—"],
-            ["Singleton Key", job.singletonKey ?? "—"],
-            ["Expires In", job.expireInSeconds ?? "—"],
-          ]}
-        />
-      </Section>
-      <Section title="Payload" subtitle="JSON data">
-        <JsonViewer data={job.data} />
-      </Section>
-      <Section title="Output" subtitle="Task result">
-        <JsonViewer data={job.output ?? null} defaultExpanded={false} />
-      </Section>
-      <Section title="Raw" subtitle="Repository payload">
-        <JsonViewer data={job.raw} defaultExpanded={false} />
-      </Section>
+        {feedback ? (
+          <div className="banner compact" aria-live="polite">
+            {feedback.message}
+          </div>
+        ) : null}
+      </section>
+
+      <section className="panel">
+        <div className="job-detail-tabs" role="tablist" aria-label="Job detail">
+          {tabs.map((tab) => (
+            <button
+              key={tab.value}
+              type="button"
+              role="tab"
+              className={`job-detail-tab${activeTab === tab.value ? " active" : ""}`}
+              aria-selected={activeTab === tab.value}
+              aria-controls={`job-detail-panel-${tab.value}`}
+              id={`job-detail-tab-${tab.value}`}
+              tabIndex={activeTab === tab.value ? 0 : -1}
+              onClick={() => selectTab(tab.value)}
+              onKeyDown={handleTabKeyDown}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {renderPanel(
+          "summary",
+          <div className="job-detail-panel-content">
+            <div className="job-detail-meta-grid">
+              {metadataRows.map(([label, value]) => (
+                <div className="job-detail-meta-card" key={label}>
+                  <span>{label}</span>
+                  <strong>{value}</strong>
+                </div>
+              ))}
+            </div>
+          </div>,
+        )}
+
+        {renderPanel(
+          "payload",
+          <div className="job-detail-panel-content">
+            <JobJsonPanel
+              title="Payload"
+              subtitle="JSON data sent to pg-boss"
+              data={job.data}
+              onCopy={() => void copyJson("Payload", job.data)}
+            />
+          </div>,
+        )}
+
+        {renderPanel(
+          "output",
+          <div className="job-detail-panel-content">
+            <JobJsonPanel
+              title="Output"
+              subtitle="Task result or failure output"
+              data={job.output ?? null}
+              defaultExpanded={false}
+              onCopy={() => void copyJson("Output", job.output ?? null)}
+            />
+          </div>,
+        )}
+
+        {renderPanel(
+          "raw",
+          <div className="job-detail-panel-content">
+            <JobJsonPanel
+              title="Raw"
+              subtitle="Raw pg-boss row"
+              data={job.raw}
+              defaultExpanded={false}
+              onCopy={() => void copyJson("Raw", job.raw)}
+            />
+          </div>,
+        )}
+      </section>
+    </div>
+  );
+}
+
+function JobJsonPanel({
+  title,
+  subtitle,
+  data,
+  defaultExpanded = true,
+  onCopy,
+}: {
+  title: string;
+  subtitle: string;
+  data: unknown;
+  defaultExpanded?: boolean;
+  onCopy: () => void;
+}) {
+  return (
+    <div className="job-detail-json-panel">
+      <div className="job-detail-panel-head">
+        <div>
+          <h3>{title}</h3>
+          <p>{subtitle}</p>
+        </div>
+        <Button type="button" variant="ghost" onClick={onCopy}>
+          Copy JSON
+        </Button>
+      </div>
+      <JsonViewer data={data} defaultExpanded={defaultExpanded} />
     </div>
   );
 }
