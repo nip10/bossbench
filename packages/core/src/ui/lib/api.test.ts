@@ -114,6 +114,29 @@ describe("bulk job actions", () => {
   });
 });
 
+describe("future jobs", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("fetches the dedicated future-jobs endpoint with job filters", async () => {
+    const payload = { items: [], page: 1, pageSize: 25, total: 0 };
+    const fetchMock = mockFetchJson(payload);
+
+    await expect(
+      api.futureJobs({ queue: "email", limit: 25, sort: "start_after:asc" }),
+    ).resolves.toEqual(payload);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "/api/future-jobs?limit=25&queue=email&sort=start_after%3Aasc",
+      ),
+      expect.any(Object),
+    );
+  });
+});
+
 describe("tag values", () => {
   afterEach(() => {
     vi.unstubAllGlobals();

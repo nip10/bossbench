@@ -96,6 +96,12 @@ export function buildRouteTable(core: BossbenchCore): RouteDef[] {
         ok(await repository.listJobs(parseFilters(query))),
     },
     {
+      method: "get",
+      path: "/future-jobs",
+      handler: async ({ query }) =>
+        ok(await repository.listFutureJobs(parseFilters(query))),
+    },
+    {
       method: "post",
       path: "/jobs/bulk/retry",
       handler: async ({ body }) =>

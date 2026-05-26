@@ -93,9 +93,14 @@ export class BossbenchRepository {
       args.push(filters.queue);
       where.push(`name = $${args.length}`);
     }
-    if (filters.state) {
+    if (filters.future && !filters.state) {
+      where.push("state in ('created','retry')");
+    } else if (filters.state) {
       args.push(filters.state);
       where.push(`state = $${args.length}`);
+    }
+    if (filters.future) {
+      where.push("start_after > now()");
     }
     if (filters.q) {
       args.push(`%${filters.q}%`);
@@ -124,7 +129,7 @@ export class BossbenchRepository {
         where.push(`(data ->> '${safeField}' in (${placeholders.join(", ")}))`);
       }
     }
-    const sql = `select id::text, name, name as queue, state::text, created_on, started_on, completed_on, priority, data, output from ${this.q("job")}${where.length ? ` where ${where.join(" and ")}` : ""} order by ${sortClause(filters.sort)} limit $${args.push(limit)} offset $${args.push(offset)}`;
+    const sql = `select id::text, name, name as queue, state::text, created_on, start_after, started_on, completed_on, priority, data, output from ${this.q("job")}${where.length ? ` where ${where.join(" and ")}` : ""} order by ${sortClause(filters.sort)} limit $${args.push(limit)} offset $${args.push(offset)}`;
     const items = await this.withClient((c) =>
       this.safeQuery<Row>(c, sql, args),
     );
@@ -135,6 +140,15 @@ export class BossbenchRepository {
       pageSize: limit,
       total,
     };
+  }
+  async listFutureJobs(
+    filters: QueryFilters = {},
+  ): Promise<PaginatedResponse<JobSummary>> {
+    return this.listJobs({
+      ...filters,
+      future: true,
+      sort: filters.sort ?? "start_after:asc",
+    });
   }
   async getJob(id: string): Promise<JobDetail | null> {
     const rows = await this.withClient((c) =>
@@ -315,6 +329,7 @@ function rowToJobSummary(row: Row): JobSummary {
     queue: String(row.queue ?? row.name),
     state: row.state as BossbenchJobState,
     createdOn: stringOrNull(row.created_on),
+    startAfter: stringOrNull(row.start_after),
     startedOn: stringOrNull(row.started_on),
     completedOn: stringOrNull(row.completed_on),
     priority: numberOrNull(row.priority),
@@ -325,6 +340,7 @@ function rowToJobSummary(row: Row): JobSummary {
 function sortClause(sort?: string) {
   const allowed = new Set([
     "created_on",
+    "start_after",
     "started_on",
     "completed_on",
     "priority",

@@ -55,6 +55,10 @@ export const api = {
     ),
   jobs: (filters?: QueryFilters) =>
     fetchJson<PaginatedResponse<JobSummary>>(`/jobs${buildJobsQuery(filters)}`),
+  futureJobs: (filters?: QueryFilters) =>
+    fetchJson<PaginatedResponse<JobSummary>>(
+      `/future-jobs${buildJobsQuery(filters)}`,
+    ),
   job: (id: string) => fetchJson<JobSummary>(`/jobs/${encodeURIComponent(id)}`),
   retryJob: (id: string) =>
     fetchJson(`/jobs/${encodeURIComponent(id)}/retry`, { method: "POST" }),

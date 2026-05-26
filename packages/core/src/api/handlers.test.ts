@@ -45,6 +45,49 @@ describe("route table /jobs parsing", () => {
     });
   });
 
+  it("passes parsed filters to repository.listFutureJobs for GET /future-jobs", async () => {
+    const listFutureJobs = vi.fn().mockResolvedValue({
+      items: [],
+      page: 1,
+      pageSize: 25,
+      total: 0,
+    });
+    const route = buildRouteTable(
+      fakeCore(vi.fn(), { listFutureJobs }) as never,
+    ).find(
+      (candidate) =>
+        candidate.method === "get" && candidate.path === "/future-jobs",
+    );
+
+    expect(route).toBeDefined();
+    assertRoute(route);
+
+    await route.handler({
+      params: {},
+      query: {
+        limit: "25",
+        offset: "10",
+        queue: "email",
+        q: "daily",
+        from: "2026-05-01T00:00:00.000Z",
+        to: "2026-05-02T00:00:00.000Z",
+        sort: "start_after:asc",
+        "tag.teamId": ["alpha"],
+      },
+    });
+
+    expect(listFutureJobs).toHaveBeenCalledWith({
+      limit: 25,
+      offset: 10,
+      queue: "email",
+      q: "daily",
+      from: "2026-05-01T00:00:00.000Z",
+      to: "2026-05-02T00:00:00.000Z",
+      sort: "start_after:asc",
+      tags: { teamId: ["alpha"] },
+    });
+  });
+
   it("throws INVALID_FILTER for invalid job state", async () => {
     const listJobs = vi.fn();
     const route = buildRouteTable(fakeCore(listJobs) as never).find(
@@ -303,6 +346,12 @@ function fakeCore(
       listQueues: vi.fn(async () => []),
       getQueue: vi.fn(async () => null),
       listJobs,
+      listFutureJobs: vi.fn(async () => ({
+        items: [],
+        page: 1,
+        pageSize: 50,
+        total: 0,
+      })),
       getJob: vi.fn(async () => null),
       getSchedules: vi.fn(async () => []),
       getWarnings: vi.fn(async () => ({
