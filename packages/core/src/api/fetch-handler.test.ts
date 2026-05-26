@@ -15,6 +15,31 @@ describe("fetch handler", () => {
     expect(res.status).toBe(400);
   });
 
+  it("returns repository metrics payload unchanged", async () => {
+    const payload = {
+      summary: {
+        totalCreated: 10,
+        totalCompleted: 7,
+        totalFailed: 2,
+        totalRetry: 1,
+        throughputPerHour: 4.2,
+        errorRate: 0.2,
+        avgDurationMs: 1500,
+        avgWaitMs: 250,
+      },
+      buckets: [],
+      queues: [],
+    };
+    const fetch = createFetchHandler(
+      fakeCore({ getMetrics: async () => payload }) as unknown as BossbenchCore,
+    );
+
+    const res = await fetch(new Request("http://x/api/metrics"));
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual(payload);
+  });
+
   it("sanitizes database errors", async () => {
     const core = fakeCore({
       listJobs: async () => {
@@ -68,6 +93,7 @@ describe("fetch handler", () => {
 type RepositoryOverrides = Partial<{
   getJob: (id: string) => Promise<{ id: string; name: string } | null>;
   listJobs: () => Promise<unknown>;
+  getMetrics: () => Promise<unknown>;
 }>;
 
 function fakeCore(overrides: RepositoryOverrides = {}) {

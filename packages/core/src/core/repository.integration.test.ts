@@ -13,6 +13,9 @@ describeIntegration("BossbenchRepository pg-boss integration", () => {
   const schema = `bossbench_it_${randomUUID().replaceAll("-", "_")}`;
   const emailJobId = randomUUID();
   const reportJobId = randomUUID();
+  const pendingJobId = randomUUID();
+  const legacyJobId = randomUUID();
+  const retryJobId = randomUUID();
   let pool: Pool;
   let boss: PgBoss;
   let repository: BossbenchRepository;
@@ -22,20 +25,32 @@ describeIntegration("BossbenchRepository pg-boss integration", () => {
     boss = new PgBoss({ connectionString, schema });
     await boss.start();
     await boss.createQueue("email");
+    await boss.createQueue("pending");
     await boss.createQueue("reports");
+    await boss.createQueue("legacy");
     await boss.schedule("email", "* * * * *", { scheduled: true });
 
     await pool.query(
-      `insert into ${schema}.job (id, name, state, priority, data, output, created_on, completed_on)
-       values
-         ($1, 'email', 'created', 5, $2::jsonb, null, now() - interval '2 hours', null),
-         ($3, 'reports', 'failed', 1, $4::jsonb, $5::jsonb, now() - interval '1 hour', now())`,
+      `insert into ${schema}.job (id, name, state, priority, data, output, created_on, started_on, completed_on)
+        values
+          ($1, 'email', 'created', 5, $2::jsonb, null, now() - interval '2 hours', now() - interval '90 minutes', null),
+          ($3, 'reports', 'failed', 1, $4::jsonb, $5::jsonb, now() - interval '1 hour', now() - interval '50 minutes', now() - interval '10 minutes'),
+          ($6, 'pending', 'created', 1, $7::jsonb, null, now() - interval '30 minutes', null, null),
+          ($8, 'legacy', 'completed', 1, $9::jsonb, $10::jsonb, now() - interval '200 hours', now() - interval '199 hours', now() - interval '1 hour'),
+          ($11, 'reports', 'retry', 1, $12::jsonb, null, now() - interval '15 minutes', now() - interval '10 minutes', null)`,
       [
         emailJobId,
         JSON.stringify({ teamId: "alpha", subject: "hello" }),
         reportJobId,
         JSON.stringify({ teamId: "beta", report: "daily" }),
         JSON.stringify({ error: "boom" }),
+        pendingJobId,
+        JSON.stringify({ teamId: "gamma", report: "pending" }),
+        legacyJobId,
+        JSON.stringify({ teamId: "delta", report: "legacy" }),
+        JSON.stringify({ archived: true }),
+        retryJobId,
+        JSON.stringify({ teamId: "beta", report: "retry" }),
       ],
     );
 
@@ -59,6 +74,8 @@ describeIntegration("BossbenchRepository pg-boss integration", () => {
 
     expect(queues.map((queue) => queue.name).sort()).toEqual([
       "email",
+      "legacy",
+      "pending",
       "reports",
     ]);
     expect(overview.totals.created).toBeGreaterThanOrEqual(1);
@@ -94,9 +111,38 @@ describeIntegration("BossbenchRepository pg-boss integration", () => {
     expect(job?.createdOn).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     expect(schedules.some((schedule) => schedule.name === "email")).toBe(true);
     expect(warnings.items[0]?.name).toBe("test-warning");
+    expect(metrics.summary.totalCreated).toBeGreaterThanOrEqual(2);
+    expect(metrics.summary.totalCompleted).toBeGreaterThanOrEqual(1);
+    expect(metrics.summary.totalFailed).toBeGreaterThanOrEqual(1);
+    expect(metrics.summary.totalRetry).toBeGreaterThanOrEqual(1);
+    expect(metrics.summary.errorRate).toBeGreaterThanOrEqual(0);
+    expect(metrics.summary.avgDurationMs).toBeGreaterThan(0);
+    expect(metrics.summary.avgWaitMs).toBeGreaterThan(0);
     expect(metrics.buckets.length).toBeGreaterThan(0);
+    const bucketWithAverages = metrics.buckets.find(
+      (bucket) => bucket.avgDurationMs !== null && bucket.avgWaitMs !== null,
+    );
+    expect(bucketWithAverages).toBeDefined();
+    expect(bucketWithAverages?.avgDurationMs).toBeGreaterThan(0);
+    expect(bucketWithAverages?.avgWaitMs).toBeGreaterThan(0);
+    expect(metrics.buckets.some((bucket) => bucket.retry > 0)).toBe(true);
+    expect(metrics.queues.map((queue) => queue.name).sort()).toEqual([
+      "email",
+      "legacy",
+      "pending",
+      "reports",
+    ]);
+    const pending = metrics.queues.find((queue) => queue.name === "pending");
+    expect(pending?.avgDurationMs).toBeNull();
+    expect(pending?.avgWaitMs).toBeNull();
+    expect(pending?.lastActivity).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    const legacy = metrics.queues.find((queue) => queue.name === "legacy");
+    expect(legacy?.created).toBe(0);
+    expect(legacy?.completed).toBeGreaterThanOrEqual(1);
+    expect(legacy?.failed).toBe(0);
+    expect(legacy?.lastActivity).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     expect(activity.items.length).toBeGreaterThan(0);
-    expect(tagValues.sort()).toEqual(["alpha", "beta"]);
+    expect(tagValues.sort()).toEqual(["alpha", "beta", "delta", "gamma"]);
   });
 
   it("rejects unconfigured tag fields", async () => {
