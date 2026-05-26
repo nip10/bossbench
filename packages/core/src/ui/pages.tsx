@@ -2095,6 +2095,11 @@ export function ActivityPage() {
 export function SettingsPage() {
   const { data } = useConfig();
   const tags = data?.tags ?? [];
+  const shortcuts = [
+    ["Cmd/Ctrl + K", "Open command palette"],
+    ["Cmd/Ctrl + R", "Refresh dashboard"],
+    ["Cmd/Ctrl + Shift + T", "Toggle theme"],
+  ] as const;
   return (
     <div className="section">
       <div className="stats-grid">
@@ -2136,6 +2141,16 @@ export function SettingsPage() {
         <div className="muted">
           Bossbench mirrors the host app’s auth and embed mode. If readonly or
           no pg-boss instance is attached, the dashboard is browse-only.
+        </div>
+      </Section>
+      <Section title="Keyboard shortcuts" subtitle="Fast actions from anywhere">
+        <div className="shortcut-list">
+          {shortcuts.map(([keys, label]) => (
+            <div key={keys} className="shortcut-row">
+              <kbd>{keys}</kbd>
+              <span className="muted">{label}</span>
+            </div>
+          ))}
         </div>
       </Section>
     </div>
