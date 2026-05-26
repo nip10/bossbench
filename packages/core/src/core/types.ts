@@ -46,6 +46,7 @@ export interface QueryFilters {
   to?: string;
   sort?: string;
   tags?: Record<string, string[]>;
+  future?: boolean;
 }
 export interface JobSummary {
   id: string;
@@ -53,6 +54,7 @@ export interface JobSummary {
   queue: string;
   state: BossbenchJobState;
   createdOn: string | null;
+  startAfter: string | null;
   startedOn: string | null;
   completedOn: string | null;
   priority: number | null;
