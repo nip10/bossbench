@@ -89,6 +89,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+  runScheduleNow: (name: string) =>
+    fetchJson<MutationResponse<{ id: string | null }>>(
+      `/schedules/${encodeURIComponent(name)}/run-now`,
+      { method: "POST" },
+    ),
   unschedule: (name: string) =>
     fetchJson(`/schedules/${encodeURIComponent(name)}`, { method: "DELETE" }),
   deadLetter: () => fetchJson<PaginatedResponse<JobSummary>>("/dead-letter"),
