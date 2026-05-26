@@ -88,6 +88,66 @@ describe("route table /jobs parsing", () => {
     });
   });
 
+  it("runs a schedule once now from schedule metadata", async () => {
+    const runScheduleNow = vi.fn().mockResolvedValue({ id: "job-1" });
+    const getSchedules = vi.fn().mockResolvedValue([
+      {
+        name: "billing",
+        cron: "0 0 * * *",
+        data: { nightly: true },
+        opts: { singletonKey: "billing" },
+      },
+    ]);
+    const route = buildRouteTable(
+      fakeCore(vi.fn(), { getSchedules }, { runScheduleNow }) as never,
+    ).find(
+      (candidate) =>
+        candidate.method === "post" &&
+        candidate.path === "/schedules/:name/run-now",
+    );
+
+    expect(route).toBeDefined();
+    assertRoute(route);
+
+    const result = await route.handler({
+      params: { name: "billing" },
+      query: {},
+    });
+
+    expect(result).toEqual({
+      status: 200,
+      body: { ok: true, result: { id: "job-1" } },
+    });
+    expect(runScheduleNow).toHaveBeenCalledWith(
+      "billing",
+      { nightly: true },
+      { singletonKey: "billing" },
+    );
+  });
+
+  it("returns SCHEDULE_NOT_FOUND when running a missing schedule", async () => {
+    const runScheduleNow = vi.fn();
+    const getSchedules = vi.fn().mockResolvedValue([]);
+    const route = buildRouteTable(
+      fakeCore(vi.fn(), { getSchedules }, { runScheduleNow }) as never,
+    ).find(
+      (candidate) =>
+        candidate.method === "post" &&
+        candidate.path === "/schedules/:name/run-now",
+    );
+
+    expect(route).toBeDefined();
+    assertRoute(route);
+
+    await expect(
+      route.handler({ params: { name: "missing" }, query: {} }),
+    ).resolves.toMatchObject({
+      status: 404,
+      body: { error: { code: "SCHEDULE_NOT_FOUND" } },
+    });
+    expect(runScheduleNow).not.toHaveBeenCalled();
+  });
+
   it("throws INVALID_FILTER for invalid job state", async () => {
     const listJobs = vi.fn();
     const route = buildRouteTable(fakeCore(listJobs) as never).find(

@@ -32,4 +32,17 @@ describe("actions", () => {
     expect(boss.resume).toHaveBeenCalledWith("email", "3");
     expect(boss.deleteJob).toHaveBeenCalledWith("email", "4");
   });
+  it("runs a schedule once now with pg-boss send", async () => {
+    const boss = {
+      send: vi.fn().mockResolvedValue("job-1"),
+    };
+    const s = new PgBossActionService(boss as unknown as PgBoss, false);
+    const data = { nightly: true };
+    const opts = { singletonKey: "billing" };
+
+    await expect(s.runScheduleNow("billing", data, opts)).resolves.toEqual({
+      id: "job-1",
+    });
+    expect(boss.send).toHaveBeenCalledWith("billing", data, opts);
+  });
 });

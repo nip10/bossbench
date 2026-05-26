@@ -224,6 +224,26 @@ export function buildRouteTable(core: BossbenchCore): RouteDef[] {
       },
     },
     {
+      method: "post",
+      path: "/schedules/:name/run-now",
+      handler: async ({ params }) => {
+        const name = required(
+          params.name,
+          "INVALID_FILTER",
+          "Invalid schedule name",
+        );
+        return mutate(async () => {
+          const schedule = (await repository.getSchedules()).find(
+            (candidate) => candidate.name === name,
+          );
+          if (!schedule) {
+            throw errorWithCode("SCHEDULE_NOT_FOUND", "Schedule not found");
+          }
+          return actions.runScheduleNow(name, schedule.data, schedule.opts);
+        });
+      },
+    },
+    {
       method: "delete",
       path: "/schedules/:name",
       handler: async ({ params }) => {
@@ -461,13 +481,14 @@ async function mutate(fn: () => Promise<unknown>): Promise<HandlerResult> {
 }
 
 function mutationStatus(code: string): number {
-  if (code === "JOB_NOT_FOUND") return 404;
+  if (code === "JOB_NOT_FOUND" || code === "SCHEDULE_NOT_FOUND") return 404;
   if (code === "READONLY_MODE" || code === "BOSS_INSTANCE_REQUIRED") return 409;
   return 400;
 }
 
 function mutationMessage(error: unknown, code: string): string {
   if (code === "JOB_NOT_FOUND") return "Job not found";
+  if (code === "SCHEDULE_NOT_FOUND") return "Schedule not found";
   if (code === "INVALID_FILTER") return errorMessage(error) ?? "Invalid filter";
   if (code === "READONLY_MODE" || code === "BOSS_INSTANCE_REQUIRED")
     return errorMessage(error) ?? "Action failed";

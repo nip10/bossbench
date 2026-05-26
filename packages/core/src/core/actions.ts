@@ -30,6 +30,14 @@ export class PgBossActionService {
   async deleteJob(name: string, id: string) {
     return this.ensure().deleteJob(name, id);
   }
+  async runScheduleNow(name: string, data?: unknown, opts?: unknown) {
+    const id = await this.ensure().send(
+      name,
+      data as object | null | undefined,
+      opts as never,
+    );
+    return { id };
+  }
   async createSchedule(name: string, cron: string, data?: unknown) {
     return this.ensure().schedule(
       name,

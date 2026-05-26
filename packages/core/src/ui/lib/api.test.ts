@@ -137,6 +137,25 @@ describe("future jobs", () => {
   });
 });
 
+describe("schedule actions", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("posts to the schedule run-now endpoint", async () => {
+    const response = { ok: true, result: { id: "job-1" } };
+    const fetchMock = mockFetchJson(response);
+
+    await expect(api.runScheduleNow("billing")).resolves.toEqual(response);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/api/schedules/billing/run-now"),
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+});
+
 describe("tag values", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
