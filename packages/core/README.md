@@ -8,6 +8,14 @@ Most apps should install an adapter instead:
 npm install @bossbench/hono pg pg-boss
 # or
 npm install @bossbench/express pg pg-boss
+# or
+npm install @bossbench/fastify pg pg-boss
+# or
+npm install @bossbench/elysia pg pg-boss
+# or
+npm install @bossbench/nestjs pg pg-boss
+# or
+npm install @bossbench/next pg pg-boss
 ```
 
 ## Security
