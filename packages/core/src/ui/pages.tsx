@@ -34,6 +34,7 @@ import type {
   MetricsResponse,
   OverviewStats,
   QueueInfo,
+  QueueMetricSummary,
   ScheduleInfo,
   WarningInfo,
 } from "../core/types";
@@ -237,6 +238,11 @@ async function invalidateJobActionQueries(
 
 export function OverviewPage() {
   const { data, isLoading, error } = useOverview();
+  const {
+    data: metricsData,
+    isLoading: metricsLoading,
+    error: metricsError,
+  } = useMetrics();
   if (isLoading && !data)
     return <EmptyState icon={LoaderCircle} title="Loading overview…" />;
   if (error)
@@ -250,10 +256,29 @@ export function OverviewPage() {
   if (!data) return null;
 
   const overview = data as OverviewStats;
+  const summary = metricsData?.summary;
+  const queueMetrics = metricsData?.queues;
   const totalJobs = Object.values(overview.totals).reduce(
     (sum: number, value: number) => sum + value,
     0,
   );
+  const slowestQueues = [...(queueMetrics ?? [])].sort(
+    (left, right) =>
+      sortNullableDesc(left.avgDurationMs, right.avgDurationMs) ||
+      left.name.localeCompare(right.name),
+  );
+  const failingQueues = [...(queueMetrics ?? [])].sort((left, right) => {
+    if (right.failed !== left.failed) return right.failed - left.failed;
+    if (right.errorRate !== left.errorRate)
+      return right.errorRate - left.errorRate;
+    return left.name.localeCompare(right.name);
+  });
+  const healthNotice =
+    metricsLoading && !metricsData
+      ? "Loading health signals…"
+      : metricsError
+        ? `Health signals unavailable${metricsData ? " (showing cached data)" : ""}: ${metricsError.message}`
+        : null;
 
   return (
     <div className="section">
@@ -283,6 +308,48 @@ export function OverviewPage() {
           icon={Inbox}
         />
       </div>
+      <Section
+        title="Health signals"
+        subtitle="Metrics-driven throughput, latency, and queue health"
+      >
+        {healthNotice ? (
+          <div className="banner compact">{healthNotice}</div>
+        ) : null}
+        <div className="stats-grid">
+          <SummaryCard
+            title="Throughput"
+            value={summary ? summary.throughputPerHour.toFixed(1) : "—"}
+            subtitle="jobs/hour"
+            icon={BarChart3}
+            className="metrics-summary-card"
+          />
+          <SummaryCard
+            title="Error Rate"
+            value={formatPercent(summary?.errorRate)}
+            subtitle={
+              summary
+                ? `${summary.totalFailed.toLocaleString()} failed`
+                : "Failed jobs"
+            }
+            icon={Percent}
+            className="metrics-summary-card"
+          />
+          <SummaryCard
+            title="Avg Wait"
+            value={formatDurationMs(summary?.avgWaitMs)}
+            subtitle="queued before start"
+            icon={Clock3}
+            className="metrics-summary-card"
+          />
+          <SummaryCard
+            title="Avg Duration"
+            value={formatDurationMs(summary?.avgDurationMs)}
+            subtitle="pg-boss execution time"
+            icon={Clock3}
+            className="metrics-summary-card"
+          />
+        </div>
+      </Section>
       <Section title="Queues" subtitle="Current queue state counts">
         <Table
           columns={[
@@ -307,6 +374,76 @@ export function OverviewPage() {
           ])}
         />
       </Section>
+      <div className="metrics-layout">
+        <Section title="Slowest queues" subtitle="Sorted by average duration">
+          {slowestQueues.length ? (
+            <Table
+              wrapperClassName="jobs-table-scroll"
+              tableClassName="jobs-table metrics-table"
+              columns={[
+                "Queue",
+                "Avg Duration",
+                "Avg Wait",
+                "Completed",
+                "Failed",
+              ]}
+              rows={slowestQueues
+                .slice(0, 5)
+                .map((queue: QueueMetricSummary) => [
+                  <Link
+                    key={queue.name}
+                    to="/queues/$queueName"
+                    params={{ queueName: queue.name } as never}
+                    className="mono"
+                  >
+                    {queue.name}
+                  </Link>,
+                  formatDurationMs(queue.avgDurationMs),
+                  formatDurationMs(queue.avgWaitMs),
+                  queue.completed.toLocaleString(),
+                  queue.failed.toLocaleString(),
+                ])}
+            />
+          ) : (
+            <div className="metrics-empty muted">
+              No queue-level metrics yet.
+            </div>
+          )}
+        </Section>
+
+        <Section
+          title="Failing queues"
+          subtitle="Sorted by failures, then error rate"
+        >
+          {failingQueues.length ? (
+            <Table
+              wrapperClassName="jobs-table-scroll"
+              tableClassName="jobs-table metrics-table"
+              columns={["Queue", "Error Rate", "Failed", "Completed", "Retry"]}
+              rows={failingQueues
+                .slice(0, 5)
+                .map((queue: QueueMetricSummary) => [
+                  <Link
+                    key={queue.name}
+                    to="/queues/$queueName"
+                    params={{ queueName: queue.name } as never}
+                    className="mono"
+                  >
+                    {queue.name}
+                  </Link>,
+                  formatPercent(queue.errorRate),
+                  queue.failed.toLocaleString(),
+                  queue.completed.toLocaleString(),
+                  queue.retry.toLocaleString(),
+                ])}
+            />
+          ) : (
+            <div className="metrics-empty muted">
+              No queue-level metrics yet.
+            </div>
+          )}
+        </Section>
+      </div>
     </div>
   );
 }
