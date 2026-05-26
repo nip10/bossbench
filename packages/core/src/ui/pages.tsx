@@ -73,6 +73,7 @@ import {
   stringifyForClipboard,
 } from "./lib/job-detail";
 import { formatDurationMs, formatPercent, scaleValue } from "./lib/metrics";
+import { parseScheduleDataInput } from "./lib/schedules";
 import { truncate } from "./lib/utils";
 import { useDashboardSearch } from "./router";
 
@@ -697,8 +698,8 @@ export function RunsPage() {
   const queueOptions = queues ?? [];
   const canGoPrevious = safeOffset > 0;
   const canGoNext = total > safeOffset + limit;
-  const visibleIds = rows.map((job) => job.id);
-  const visibleSelectedCount = visibleIds.filter((id) =>
+  const visibleIds = rows.map((job: JobSummary) => job.id);
+  const visibleSelectedCount = visibleIds.filter((id: string) =>
     selectedIds.has(id),
   ).length;
   const allVisibleSelected =
@@ -961,7 +962,7 @@ export function RunsPage() {
           </div>
           {configuredTags.length ? (
             <div className="job-tag-grid">
-              {configuredTags.map((tag) => (
+              {configuredTags.map((tag: string) => (
                 <div className="job-filter" key={tag}>
                   <span>{tag}</span>
                   <Input
@@ -1476,12 +1477,13 @@ function JobJsonPanel({
   );
 }
 
-export function SchedulersPage() {
+export function SchedulesPage() {
   const { data, isLoading, error } = useSchedules();
   const { data: config } = useConfig();
   const [actionState, setActionState] = useState<string | null>(null);
   const [scheduleName, setScheduleName] = useState("");
   const [scheduleCron, setScheduleCron] = useState("");
+  const [scheduleData, setScheduleData] = useState("");
   if (isLoading && !data)
     return <EmptyState icon={LoaderCircle} title="Loading schedules…" />;
   if (error)
@@ -1498,7 +1500,13 @@ export function SchedulersPage() {
   const createSchedule = async () => {
     setActionState(`Scheduling ${scheduleName}…`);
     try {
-      await api.createSchedule({ name: scheduleName, cron: scheduleCron });
+      const parsedData = parseScheduleDataInput(scheduleData);
+      await api.createSchedule({
+        name: scheduleName,
+        cron: scheduleCron,
+        ...(parsedData === undefined ? {} : { data: parsedData }),
+      });
+      setScheduleData("");
       setActionState("Schedule created. Refreshing…");
       window.setTimeout(() => window.location.reload(), 400);
     } catch (error) {
@@ -1527,18 +1535,28 @@ export function SchedulersPage() {
       subtitle="Repeatable jobs"
       actions={
         <div className="filters">
-          <input
-            className="input"
-            value={scheduleName}
-            onChange={(event) => setScheduleName(event.target.value)}
-            placeholder="Queue name"
-          />
-          <input
-            className="input"
-            value={scheduleCron}
-            onChange={(event) => setScheduleCron(event.target.value)}
-            placeholder="* * * * *"
-          />
+          <div className="stack" style={{ minWidth: 260, flex: "1 1 320px" }}>
+            <input
+              className="input"
+              value={scheduleName}
+              onChange={(event) => setScheduleName(event.target.value)}
+              placeholder="Queue name"
+            />
+            <input
+              className="input"
+              value={scheduleCron}
+              onChange={(event) => setScheduleCron(event.target.value)}
+              placeholder="* * * * *"
+            />
+            <textarea
+              className="input"
+              value={scheduleData}
+              onChange={(event) => setScheduleData(event.target.value)}
+              placeholder='Optional JSON data (for example: {"foo":"bar"})'
+              aria-label="Schedule JSON data"
+              style={{ minHeight: 92, height: "auto", resize: "vertical" }}
+            />
+          </div>
           <button
             type="button"
             className="button"
@@ -1587,6 +1605,8 @@ export function SchedulersPage() {
   );
 }
 
+export const SchedulersPage = SchedulesPage;
+
 export function DeadLetterPage() {
   const { data, isLoading, error } = useDeadLetter();
   if (isLoading && !data)
@@ -1600,35 +1620,51 @@ export function DeadLetterPage() {
       />
     );
   const jobs = data?.items ?? [];
-
-  if (!jobs.length) {
-    return (
-      <EmptyState
-        icon={CircleSlash2}
-        title="Dead letter is empty"
-        description="Failed jobs will appear here when pg-boss exhausts retries."
-      />
-    );
-  }
+  const deadLetterCount = data?.total ?? 0;
 
   return (
-    <Section title="Dead Letter" subtitle={`${data?.total ?? 0} failed jobs`}>
-      <Table
-        columns={["ID", "Queue", "State", "Created"]}
-        rows={jobs.map((job: JobSummary) => [
-          <Link
-            key={job.id}
-            to="/jobs/$jobId"
-            params={{ jobId: job.id } as never}
-            className="mono"
-          >
-            {truncate(job.id, 12)}
-          </Link>,
-          job.queue,
-          <StatusBadge key={`${job.id}-state`} state={job.state} />,
-          <RelativeTime key={`${job.id}-created`} timestamp={job.createdOn} />,
-        ])}
-      />
+    <Section title="Dead Letter" subtitle={`${deadLetterCount} failed jobs`}>
+      <div className="stats-grid">
+        <SummaryCard
+          title="Dead-letter jobs"
+          value={deadLetterCount.toLocaleString()}
+          subtitle="Failed after retries"
+          icon={CircleSlash2}
+        />
+        <SummaryCard
+          title="Guidance"
+          value="Inspect jobs"
+          subtitle="Open a job to review its payload, output, and failure details."
+          icon={AlertTriangle}
+        />
+      </div>
+      {jobs.length ? (
+        <Table
+          columns={["ID", "Queue", "State", "Created"]}
+          rows={jobs.map((job: JobSummary) => [
+            <Link
+              key={job.id}
+              to="/jobs/$jobId"
+              params={{ jobId: job.id } as never}
+              className="mono"
+            >
+              {truncate(job.id, 12)}
+            </Link>,
+            job.queue,
+            <StatusBadge key={`${job.id}-state`} state={job.state} />,
+            <RelativeTime
+              key={`${job.id}-created`}
+              timestamp={job.createdOn}
+            />,
+          ])}
+        />
+      ) : (
+        <EmptyState
+          icon={CircleSlash2}
+          title="Dead letter is empty"
+          description="Failed jobs will appear here when pg-boss exhausts retries."
+        />
+      )}
     </Section>
   );
 }
@@ -1652,7 +1688,7 @@ export function WarningsPage() {
       <EmptyState
         icon={Bell}
         title="No warnings"
-        description="Schema and runtime warnings will appear here when the dashboard detects issues."
+        description="Schema and runtime warnings will appear here when the dashboard detects issues. If you expect persistent warnings, confirm pg-boss is configured with persistWarnings."
       />
     );
   }
