@@ -7,11 +7,13 @@ import type {
   JobDetail,
   JobSummary,
   MetricPoint,
+  MetricsResponse,
   OverviewStats,
   PaginatedResponse,
   QueryFilters,
   QueueDetail,
   QueueInfo,
+  QueueMetricSummary,
   ScheduleInfo,
   WarningInfo,
 } from "./types";
@@ -166,14 +168,59 @@ export class BossbenchRepository {
     );
     return { items, page: 1, pageSize: 200, total: items.length };
   }
-  async getMetrics(): Promise<{ buckets: MetricPoint[] }> {
+  async getMetrics(): Promise<MetricsResponse> {
     const buckets = await this.withClient((c) =>
       this.safeQuery<MetricPoint>(
         c,
-        `select date_trunc('hour', created_on)::text as bucket, count(*) filter (where state='created')::int as created, count(*) filter (where state='completed')::int as completed, count(*) filter (where state='failed')::int as failed, count(*) filter (where state='retry')::int as retry from ${this.q("job")} group by 1 order by 1 desc limit 168`,
+        `with created_rows as (
+           select date_trunc('hour', created_on) as bucket, count(*) filter (where state='created')::int as created, 0::int as completed, 0::int as failed, count(*) filter (where state='retry')::int as retry, null::float8 as "avgDurationMs", null::float8 as "avgWaitMs"
+           from ${this.q("job")}
+           where created_on >= now() - interval '168 hours' and state in ('created', 'retry')
+           group by 1
+         ), terminal_rows as (
+           select date_trunc('hour', completed_on) as bucket, 0::int as created, count(*) filter (where state='completed')::int as completed, count(*) filter (where state='failed')::int as failed, 0::int as retry, avg(extract(epoch from completed_on - started_on) * 1000) filter (where started_on is not null and completed_on is not null)::float8 as "avgDurationMs", avg(extract(epoch from started_on - created_on) * 1000) filter (where started_on is not null and created_on is not null)::float8 as "avgWaitMs"
+           from ${this.q("job")}
+           where completed_on >= now() - interval '168 hours' and state in ('completed', 'failed')
+           group by 1
+         )
+         select bucket::text as bucket, sum(created)::int as created, sum(completed)::int as completed, sum(failed)::int as failed, sum(retry)::int as retry, avg("avgDurationMs")::float8 as "avgDurationMs", avg("avgWaitMs")::float8 as "avgWaitMs"
+         from (select * from created_rows union all select * from terminal_rows) s group by 1 order by 1 desc limit 168`,
       ),
     );
-    return { buckets };
+    const summary = await this.withClient((c) =>
+      this.safeQuery<SummaryRow>(
+        c,
+        `select
+           count(*) filter (where state='created' and created_on >= now() - interval '168 hours')::int as "totalCreated",
+           count(*) filter (where state='retry' and created_on >= now() - interval '168 hours')::int as "totalRetry",
+           count(*) filter (where state='completed' and completed_on >= now() - interval '168 hours')::int as "totalCompleted",
+           count(*) filter (where state='failed' and completed_on >= now() - interval '168 hours')::int as "totalFailed",
+           coalesce(count(*) filter (where state in ('completed','failed') and completed_on >= now() - interval '168 hours')::float8 / 168.0, 0) as "throughputPerHour",
+           coalesce(count(*) filter (where state='failed' and completed_on >= now() - interval '168 hours')::float8 / nullif(count(*) filter (where state in ('completed','failed') and completed_on >= now() - interval '168 hours'), 0), 0) as "errorRate",
+           avg(extract(epoch from completed_on - started_on) * 1000) filter (where state in ('completed','failed') and completed_on >= now() - interval '168 hours' and started_on is not null) as "avgDurationMs",
+           avg(extract(epoch from started_on - created_on) * 1000) filter (where state in ('completed','failed') and completed_on >= now() - interval '168 hours' and started_on is not null and created_on is not null) as "avgWaitMs"
+         from ${this.q("job")}
+         where created_on >= now() - interval '168 hours' or completed_on >= now() - interval '168 hours'`,
+      ),
+    ).then((rows) => rowToMetricsSummary(rows[0]));
+    const queues = await this.withClient((c) =>
+      this.safeQuery<Row>(
+        c,
+        `select name,
+           count(*) filter (where state='created' and created_on >= now() - interval '168 hours')::int as created,
+           count(*) filter (where state='retry' and created_on >= now() - interval '168 hours')::int as retry,
+           count(*) filter (where state='completed' and completed_on >= now() - interval '168 hours')::int as completed,
+           count(*) filter (where state='failed' and completed_on >= now() - interval '168 hours')::int as failed,
+           coalesce(count(*) filter (where state='failed' and completed_on >= now() - interval '168 hours')::float8 / nullif(count(*) filter (where state in ('completed','failed') and completed_on >= now() - interval '168 hours'), 0), 0) as "errorRate",
+           avg(extract(epoch from completed_on - started_on) * 1000) filter (where state in ('completed','failed') and completed_on >= now() - interval '168 hours' and started_on is not null and completed_on is not null)::float8 as "avgDurationMs",
+           avg(extract(epoch from started_on - created_on) * 1000) filter (where state in ('completed','failed') and completed_on >= now() - interval '168 hours' and started_on is not null and created_on is not null)::float8 as "avgWaitMs",
+           max(coalesce(completed_on, started_on, created_on)) as "lastActivity"
+         from ${this.q("job")}
+         where created_on >= now() - interval '168 hours' or completed_on >= now() - interval '168 hours'
+         group by name order by name asc`,
+      ),
+    ).then((rows) => rows.map(rowToQueueMetrics));
+    return { summary, buckets, queues };
   }
   async getActivity(): Promise<{ items: ActivityPoint[] }> {
     const items = await this.withClient((c) =>
@@ -320,4 +367,42 @@ function getErrorCode(error: unknown) {
   if (typeof code === "string" && code.length > 0) return code;
   if (typeof code === "number") return String(code);
   return undefined;
+}
+
+type SummaryRow = {
+  totalCreated: number;
+  totalCompleted: number;
+  totalFailed: number;
+  totalRetry: number;
+  throughputPerHour: number;
+  errorRate: number;
+  avgDurationMs: number | null;
+  avgWaitMs: number | null;
+};
+
+function rowToMetricsSummary(row?: SummaryRow): SummaryRow {
+  return {
+    totalCreated: numberOrDefault(row?.totalCreated, 0),
+    totalCompleted: numberOrDefault(row?.totalCompleted, 0),
+    totalFailed: numberOrDefault(row?.totalFailed, 0),
+    totalRetry: numberOrDefault(row?.totalRetry, 0),
+    throughputPerHour: numberOrDefault(row?.throughputPerHour, 0),
+    errorRate: numberOrDefault(row?.errorRate, 0),
+    avgDurationMs: numberOrNull(row?.avgDurationMs),
+    avgWaitMs: numberOrNull(row?.avgWaitMs),
+  };
+}
+
+function rowToQueueMetrics(row: Row): QueueMetricSummary {
+  return {
+    name: String(row.name),
+    created: numberOrDefault(row.created, 0),
+    completed: numberOrDefault(row.completed, 0),
+    failed: numberOrDefault(row.failed, 0),
+    retry: numberOrDefault(row.retry, 0),
+    errorRate: numberOrDefault(row.errorRate, 0),
+    avgDurationMs: numberOrNull(row.avgDurationMs),
+    avgWaitMs: numberOrNull(row.avgWaitMs),
+    lastActivity: stringOrNull(row.lastActivity),
+  };
 }

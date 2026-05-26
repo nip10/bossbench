@@ -3,12 +3,15 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "@tanstack/react-router";
 import {
   AlertTriangle,
+  BarChart3,
   Bell,
   CalendarDays,
   CircleSlash2,
+  Clock3,
   Database,
   Inbox,
   LoaderCircle,
+  Percent,
   SearchX,
   SquareActivity,
 } from "lucide-react";
@@ -27,6 +30,7 @@ import type {
   JobDetail,
   JobSummary,
   MetricPoint,
+  MetricsResponse,
   OverviewStats,
   QueueInfo,
   ScheduleInfo,
@@ -61,6 +65,7 @@ import {
   useSchedules,
   useWarnings,
 } from "./lib/hooks";
+import { formatDurationMs, formatPercent, scaleValue } from "./lib/metrics";
 import { truncate } from "./lib/utils";
 import { useDashboardSearch } from "./router";
 
@@ -1307,8 +1312,10 @@ function Bars({
   items: Array<{ label: string; value: number }>;
   palette: string;
 }) {
+  const max = items.reduce((largest, item) => Math.max(largest, item.value), 0);
+
   return (
-    <div className="stack">
+    <div className="stack bars">
       {items.map((item) => (
         <div className="bar" key={item.label}>
           <span className="muted mono">{item.label}</span>
@@ -1316,7 +1323,7 @@ function Bars({
             <div
               className={`fill ${palette}`}
               style={{
-                width: `${Math.max(8, Math.min(100, item.value * 10))}%`,
+                width: `${scaleValue(item.value, max)}%`,
               }}
             />
           </div>
@@ -1327,11 +1334,305 @@ function Bars({
   );
 }
 
+function formatBucketLabel(bucket: string) {
+  return new Date(bucket).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function sortNullableDesc(a: number | null, b: number | null) {
+  if (a === null && b === null) return 0;
+  if (a === null) return 1;
+  if (b === null) return -1;
+  return b - a;
+}
+
+function ThroughputPanel({ buckets }: { buckets: MetricPoint[] }) {
+  const recentBuckets = buckets.slice(0, 12).slice().reverse();
+  const max = recentBuckets.reduce(
+    (largest, bucket) => Math.max(largest, bucket.completed + bucket.failed),
+    0,
+  );
+
+  return (
+    <div className="metrics-chart">
+      {recentBuckets.map((bucket) => {
+        const completed = bucket.completed;
+        const failed = bucket.failed;
+        const total = completed + failed;
+
+        return (
+          <div className="metrics-chart-row" key={bucket.bucket}>
+            <div className="metrics-chart-label">
+              <span className="mono">{formatBucketLabel(bucket.bucket)}</span>
+              <span className="muted">{total} jobs</span>
+            </div>
+            <div className="metrics-chart-track">
+              <div className="metrics-chart-bars">
+                <div
+                  className="metrics-chart-fill success"
+                  style={{ width: `${scaleValue(completed, max)}%` }}
+                  title={`Completed ${completed}`}
+                />
+                <div
+                  className="metrics-chart-fill danger"
+                  style={{ width: `${scaleValue(failed, max)}%` }}
+                  title={`Failed ${failed}`}
+                />
+              </div>
+            </div>
+            <div className="metrics-chart-values mono">
+              <span>{completed} completed</span>
+              <span>{failed} failed</span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function LatencyPanel({ buckets }: { buckets: MetricPoint[] }) {
+  const recentBuckets = buckets.slice(0, 12).slice().reverse();
+  const max = recentBuckets.reduce((largest, bucket) => {
+    return Math.max(largest, bucket.avgDurationMs ?? 0, bucket.avgWaitMs ?? 0);
+  }, 0);
+
+  return (
+    <div className="metrics-chart metrics-chart--latency">
+      {recentBuckets.map((bucket) => (
+        <div className="metrics-latency-row" key={bucket.bucket}>
+          <div className="metrics-chart-label">
+            <span className="mono">{formatBucketLabel(bucket.bucket)}</span>
+            <span className="muted">
+              {(bucket.completed + bucket.failed).toLocaleString()} jobs
+            </span>
+          </div>
+          <div className="metrics-latency-bars">
+            <div className="metrics-meter">
+              <div className="metrics-meter-head">
+                <span>Duration</span>
+                <strong className="mono">
+                  {formatDurationMs(bucket.avgDurationMs)}
+                </strong>
+              </div>
+              <div className="metrics-meter-track">
+                <div
+                  className="metrics-meter-fill"
+                  style={{
+                    width: `${scaleValue(bucket.avgDurationMs ?? 0, max)}%`,
+                  }}
+                />
+              </div>
+            </div>
+            <div className="metrics-meter">
+              <div className="metrics-meter-head">
+                <span>Wait</span>
+                <strong className="mono">
+                  {formatDurationMs(bucket.avgWaitMs)}
+                </strong>
+              </div>
+              <div className="metrics-meter-track">
+                <div
+                  className="metrics-meter-fill success"
+                  style={{
+                    width: `${scaleValue(bucket.avgWaitMs ?? 0, max)}%`,
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MetricsDashboard({
+  metrics,
+  errorMessage,
+}: {
+  metrics: MetricsResponse;
+  errorMessage: string | undefined;
+}) {
+  const buckets = metrics.buckets ?? [];
+  const queues = metrics.queues ?? [];
+  const hasBuckets = buckets.length > 0;
+  const hasQueues = queues.length > 0;
+  const slowestQueues = useMemo(
+    () =>
+      [...queues].sort(
+        (left, right) =>
+          sortNullableDesc(left.avgDurationMs, right.avgDurationMs) ||
+          left.name.localeCompare(right.name),
+      ),
+    [queues],
+  );
+  const failingQueues = useMemo(
+    () =>
+      [...queues].sort((left, right) => {
+        if (right.failed !== left.failed) return right.failed - left.failed;
+        if (right.errorRate !== left.errorRate)
+          return right.errorRate - left.errorRate;
+        return left.name.localeCompare(right.name);
+      }),
+    [queues],
+  );
+
+  return (
+    <div className="section metrics-dashboard">
+      {errorMessage ? (
+        <div className="banner compact metrics-banner">{errorMessage}</div>
+      ) : null}
+      <div className="stats-grid metrics-summary-grid">
+        <SummaryCard
+          title="Throughput"
+          value={metrics.summary.throughputPerHour.toFixed(1)}
+          subtitle="jobs/hour"
+          icon={BarChart3}
+          className="metrics-summary-card"
+        />
+        <SummaryCard
+          title="Error Rate"
+          value={formatPercent(metrics.summary.errorRate)}
+          subtitle={`${metrics.summary.totalFailed} failed`}
+          icon={Percent}
+          className="metrics-summary-card"
+        />
+        <SummaryCard
+          title="Avg Duration"
+          value={formatDurationMs(metrics.summary.avgDurationMs)}
+          subtitle="pg-boss execution time"
+          icon={Clock3}
+          className="metrics-summary-card"
+        />
+        <SummaryCard
+          title="Avg Wait"
+          value={formatDurationMs(metrics.summary.avgWaitMs)}
+          subtitle="queued before start"
+          icon={Clock3}
+          className="metrics-summary-card"
+        />
+      </div>
+
+      {!hasBuckets && !hasQueues ? (
+        <EmptyState
+          icon={SquareActivity}
+          title="No metrics yet"
+          description="pg-boss has not produced hourly buckets or queue-level metrics for this window."
+        />
+      ) : (
+        <div className="metrics-layout">
+          <Section
+            title="Throughput"
+            subtitle="Completed and failed jobs by hour"
+            actions={<span className="muted">Last 12 hours</span>}
+          >
+            {hasBuckets ? (
+              <ThroughputPanel buckets={buckets} />
+            ) : (
+              <div className="metrics-empty muted">
+                No bucketed throughput data is available yet.
+              </div>
+            )}
+          </Section>
+
+          <Section
+            title="Duration and wait"
+            subtitle="Average execution and queue wait by hour"
+            actions={<span className="muted">Last 12 hours</span>}
+          >
+            {hasBuckets ? (
+              <LatencyPanel buckets={buckets} />
+            ) : (
+              <div className="metrics-empty muted">
+                No latency data is available yet.
+              </div>
+            )}
+          </Section>
+
+          <Section title="Slowest queues" subtitle="Sorted by average duration">
+            {hasQueues ? (
+              <Table
+                wrapperClassName="jobs-table-scroll"
+                tableClassName="jobs-table metrics-table"
+                columns={[
+                  "Queue",
+                  "Avg duration",
+                  "Avg wait",
+                  "Completed",
+                  "Failed",
+                ]}
+                rows={slowestQueues.map((queue) => [
+                  <Link
+                    key={queue.name}
+                    to="/queues/$queueName"
+                    params={{ queueName: queue.name } as never}
+                    className="mono"
+                  >
+                    {queue.name}
+                  </Link>,
+                  formatDurationMs(queue.avgDurationMs),
+                  formatDurationMs(queue.avgWaitMs),
+                  queue.completed.toLocaleString(),
+                  queue.failed.toLocaleString(),
+                ])}
+              />
+            ) : (
+              <div className="metrics-empty muted">
+                No queue-level metrics yet.
+              </div>
+            )}
+          </Section>
+
+          <Section
+            title="Failing queues"
+            subtitle="Sorted by failures, then error rate"
+          >
+            {hasQueues ? (
+              <Table
+                wrapperClassName="jobs-table-scroll"
+                tableClassName="jobs-table metrics-table"
+                columns={[
+                  "Queue",
+                  "Error rate",
+                  "Failed",
+                  "Completed",
+                  "Retry",
+                ]}
+                rows={failingQueues.map((queue) => [
+                  <Link
+                    key={queue.name}
+                    to="/queues/$queueName"
+                    params={{ queueName: queue.name } as never}
+                    className="mono"
+                  >
+                    {queue.name}
+                  </Link>,
+                  formatPercent(queue.errorRate),
+                  queue.failed.toLocaleString(),
+                  queue.completed.toLocaleString(),
+                  queue.retry.toLocaleString(),
+                ])}
+              />
+            ) : (
+              <div className="metrics-empty muted">
+                No queue-level metrics yet.
+              </div>
+            )}
+          </Section>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function MetricsPage() {
   const { data, isLoading, error } = useMetrics();
   if (isLoading && !data)
     return <EmptyState icon={LoaderCircle} title="Loading metrics…" />;
-  if (error)
+  if (error && !data)
     return (
       <EmptyState
         icon={AlertTriangle}
@@ -1339,50 +1640,9 @@ export function MetricsPage() {
         description={error.message}
       />
     );
-  const buckets = (data?.buckets ?? []) as MetricPoint[];
-  const totals = buckets.reduce(
-    (acc, bucket) => ({
-      created: acc.created + bucket.created,
-      completed: acc.completed + bucket.completed,
-      failed: acc.failed + bucket.failed,
-      retry: acc.retry + bucket.retry,
-    }),
-    { created: 0, completed: 0, failed: 0, retry: 0 },
-  );
 
-  return (
-    <Section
-      title="Metrics"
-      subtitle="Created / completed / failed / retry"
-      actions={<span className="muted">24h buckets</span>}
-    >
-      <div className="stats-grid">
-        <SummaryCard
-          title="Created"
-          value={totals.created}
-          icon={SquareActivity}
-        />
-        <SummaryCard
-          title="Completed"
-          value={totals.completed}
-          icon={Database}
-        />
-        <SummaryCard title="Failed" value={totals.failed} icon={CircleSlash2} />
-        <SummaryCard title="Retry" value={totals.retry} icon={Bell} />
-      </div>
-      <Bars
-        palette=""
-        items={buckets.slice(0, 12).map((bucket) => ({
-          label: new Date(bucket.bucket).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-          value:
-            bucket.created + bucket.completed + bucket.failed + bucket.retry,
-        }))}
-      />
-    </Section>
-  );
+  if (!data) return null;
+  return <MetricsDashboard metrics={data} errorMessage={error?.message} />;
 }
 
 export function ActivityPage() {

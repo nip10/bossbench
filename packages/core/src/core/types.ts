@@ -106,6 +106,34 @@ export interface MetricPoint {
   completed: number;
   failed: number;
   retry: number;
+  avgDurationMs: number | null;
+  avgWaitMs: number | null;
+}
+export interface MetricsSummary {
+  totalCreated: number;
+  totalCompleted: number;
+  totalFailed: number;
+  totalRetry: number;
+  throughputPerHour: number;
+  errorRate: number;
+  avgDurationMs: number | null;
+  avgWaitMs: number | null;
+}
+export interface QueueMetricSummary {
+  name: string;
+  created: number;
+  completed: number;
+  failed: number;
+  retry: number;
+  errorRate: number;
+  avgDurationMs: number | null;
+  avgWaitMs: number | null;
+  lastActivity: string | null;
+}
+export interface MetricsResponse {
+  summary: MetricsSummary;
+  buckets: MetricPoint[];
+  queues: QueueMetricSummary[];
 }
 export interface ActivityPoint {
   bucket: string;
