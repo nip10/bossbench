@@ -143,3 +143,7 @@ PR should mention:
 - closes #23, #24, #26;
 - contributes to #11;
 - #25 remains follow-up unless included.
+
+## CI note
+
+This PR is expected to use the base CI workflow with full checkout history for commitlint.
