@@ -104,9 +104,9 @@ Open parity issues:
 | Smoke tests | Implemented | Bossbench smoke covers package entrypoints and optional demo checks. | — |
 | CI | Implemented | Bossbench runs lint, commitlint, typecheck, tests, integration, build, and smoke. | — |
 | npm release workflow | Implemented | Bossbench uses Changesets release workflow. | — |
-| Desktop app | Planned | Workbench has Tauri desktop. Bossbench tracks desktop as a post-package milestone. | [#14](https://github.com/nip10/bossbench/issues/14) |
-| Desktop secure credential storage | Planned | Required for pg-boss/Postgres desktop safety. | [#14](https://github.com/nip10/bossbench/issues/14) |
-| Desktop read-only default | Planned | Required for safe Postgres desktop usage. | [#14](https://github.com/nip10/bossbench/issues/14) |
+| Desktop app | Planned | Workbench has Tauri desktop. Bossbench desktop is tracked as child issues #29–#34 because local implementation requires Rust/Tauri tooling and stricter Postgres safety controls. | [#14](https://github.com/nip10/bossbench/issues/14) |
+| Desktop secure credential storage | Planned | Required for pg-boss/Postgres desktop safety; tracked by #30. | [#14](https://github.com/nip10/bossbench/issues/14) |
+| Desktop read-only default | Planned | Required for safe Postgres desktop usage; tracked by #29/#31/#34. | [#14](https://github.com/nip10/bossbench/issues/14) |
 
 ## Remaining priority order
 
