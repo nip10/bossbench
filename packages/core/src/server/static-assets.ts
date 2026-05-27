@@ -43,7 +43,7 @@ export function renderIndexHtml(
     : fallbackHtml(title, basePath);
 
   return {
-    body: injectBaseHref(html, basePath),
+    body: injectBaseHref(injectIconLink(html, basePath), basePath),
     contentType: "text/html; charset=utf-8",
   };
 }
@@ -75,6 +75,21 @@ function injectBaseHref(html: string, basePath: string): string {
     : html;
 }
 
+function injectIconLink(html: string, basePath: string): string {
+  if (html.includes('rel="icon"')) {
+    return html.replace(
+      /<link rel="icon" href="[^"]+">/,
+      `<link rel="icon" href="${basePath}app-icon.svg">`,
+    );
+  }
+  return html.includes("<head>")
+    ? html.replace(
+        "<head>",
+        `<head><link rel="icon" href="${basePath}app-icon.svg">`,
+      )
+    : html;
+}
+
 function fallbackHtml(title: string, basePath: string): string {
-  return `<!doctype html><html><head><base href="${basePath}"><title>${title}</title></head><body><div id="root"></div></body></html>`;
+  return `<!doctype html><html><head><base href="${basePath}"><link rel="icon" href="${basePath}app-icon.svg"><title>${title}</title></head><body><div id="root"></div></body></html>`;
 }

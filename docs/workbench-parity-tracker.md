@@ -2,7 +2,7 @@
 
 Last updated: 2026-05-27
 
-Last upstream audit: 2026-05-26, [`pontusab/workbench@237beaf`](https://github.com/pontusab/workbench/commit/237beaf) after previously checked [`5e1bbf3`](https://github.com/pontusab/workbench/commit/5e1bbf307f160661e8729611774e531df2d3abe7).
+Last upstream audit: 2026-05-27, [`pontusab/workbench@45f19ff`](https://github.com/pontusab/workbench/commit/45f19ff) after previously checked [`237beaf`](https://github.com/pontusab/workbench/commit/237beaf).
 
 This document tracks Bossbench parity with upstream Workbench. Bossbench is pg-boss/Postgres-native, so parity does **not** mean copying BullMQ-only behavior. Every Workbench capability should be classified as implemented, adapted to pg-boss, planned, or intentionally unsupported.
 
@@ -35,6 +35,7 @@ Open parity issues:
 | Date | Upstream range | New upstream work | Bossbench follow-up |
 | --- | --- | --- | --- |
 | 2026-05-26 | [`5e1bbf3..237beaf`](https://github.com/pontusab/workbench/compare/5e1bbf307f160661e8729611774e531df2d3abe7...237beaf) | Workbench 0.5.0 added scheduler **Run now**, fixed delayed-tab separation for scheduler next-runs, rendered future timestamps as `in Xs`, added `@getworkbench/mcp`, expanded AI-search/LLM docs (`llms.txt`, robots, JSON-LD, launch blog), and added Astro/Bun/h3/Koa/Nuxt adapters/examples. | Completed pg-boss-safe future timestamps, future jobs, schedule Run now, AI-search metadata, MCP design, adapter evaluation, and dashboard follow-through in PRs #42–#48. Remaining follow-up: build the actual read-only `@bossbench/mcp` package and implement h3 only if adapter expansion proceeds. |
+| 2026-05-27 | [`237beaf..45f19ff`](https://github.com/pontusab/workbench/compare/237beaf...45f19ff) | Workbench 0.5.2 added a BullMQ job logs tab, app icon branding/static asset plumbing, queue popover scrolling, and dashboard/container layout fixes. | Ported container-safe shell height, scrollable queue shortcuts, and embedded app-icon plumbing. Tracked pg-boss-native timeline/events design separately in #53 because BullMQ `job.log()` does not map directly to pg-boss. |
 
 When auditing upstream again, compare from the `Last upstream audit` commit above to `pontusab/workbench@main`, then append one row here and update the audit line.
 
@@ -43,7 +44,7 @@ When auditing upstream again, compare from the `Last upstream audit` commit abov
 | Workbench capability | Bossbench status | Bossbench equivalent / rationale | Issue |
 | --- | --- | --- | --- |
 | Embedded dashboard shell | Adapted | Bossbench has shell/sidebar/header layout, but Workbench shell is still denser and more polished. | [#9](https://github.com/nip10/bossbench/issues/9) |
-| Sidebar navigation | Adapted | Bossbench has icon sidebar and main sections; queue affordances are simpler than Workbench. | [#9](https://github.com/nip10/bossbench/issues/9) |
+| Sidebar navigation | Adapted | Bossbench has icon sidebar, main sections, and scrollable queue shortcuts for large queue sets; queue affordances are still simpler than Workbench. | [#9](https://github.com/nip10/bossbench/issues/9) |
 | Command palette | Adapted | Bossbench has route and queue navigation; Workbench command palette is richer. | [#9](https://github.com/nip10/bossbench/issues/9) |
 | Header search | Implemented | Bossbench has global/job search integrated into Jobs. | — |
 | Dark UI/theme toggle | Implemented | Bossbench supports dark/light dashboard theme. | — |
@@ -55,6 +56,7 @@ When auditing upstream again, compare from the `Last upstream audit` commit abov
 | Job error/retry history detail | Gap | Bossbench exposes retry count/limit and output/raw data; Workbench has richer error/retry/timeline detail. | [#12](https://github.com/nip10/bossbench/issues/12) |
 | Job clone/requeue | Planned | Not implemented in the safe inspect/copy/export wave; requires pg-boss-specific manual enqueue/requeue design. | [#12](https://github.com/nip10/bossbench/issues/12) |
 | Job timeline | Gap | Workbench has richer timeline/timing visualization; Bossbench has summary timestamps and metrics. | [#9](https://github.com/nip10/bossbench/issues/9) |
+| Job logs tab | Planned | Workbench reads BullMQ `job.log()` output. pg-boss has no direct equivalent, so Bossbench should design a Timeline/Events/History tab from reliable pg-boss/Postgres data. | [#53](https://github.com/nip10/bossbench/issues/53) |
 | Manual test/enqueue page | Planned | Workbench has a Test page/manual enqueue flow used by clone. Bossbench needs a pg-boss-safe design before adding this. | [#12](https://github.com/nip10/bossbench/issues/12) |
 | Scheduler "Run now" | Adapted | Bossbench exposes a pg-boss-safe Run now action that enqueues one immediate job from schedule metadata through `PgBoss.send()` without changing the cron cadence. | — |
 | Future timestamp copy | Implemented | Bossbench renders sub-day future relative times as `in Xs`, `in Xm`, and `in Xh`. | — |
@@ -120,7 +122,7 @@ When auditing upstream again, compare from the `Last upstream audit` commit abov
 | MCP server | Planned | Bossbench has an accepted read-only `@bossbench/mcp` design. Implementation remains pending. | — |
 | CLI initializer | Adapted | Bossbench CLI detects supported frameworks and injects pg-boss/Postgres setup. Docs can be clearer. | [#13](https://github.com/nip10/bossbench/issues/13) |
 | Framework examples | Implemented | Bossbench has `with-*` examples plus a seeded demo. | — |
-| Marketing/docs site | Adapted | Bossbench has Workbench-style marketing site adapted to pg-boss plus `llms.txt`, AI-search robots policy, sitemap, and JSON-LD. Blog/MCP launch content can follow when MCP ships. | — |
+| Marketing/docs site | Adapted | Bossbench has Workbench-style marketing site adapted to pg-boss plus `llms.txt`, AI-search robots policy, sitemap, JSON-LD, and app-icon metadata. Blog/MCP launch content can follow when MCP ships. | — |
 | Smoke tests | Implemented | Bossbench smoke covers package entrypoints and optional demo checks. | — |
 | CI | Implemented | Bossbench runs lint, commitlint, typecheck, tests, integration, build, and smoke. | — |
 | npm release workflow | Implemented | Bossbench uses Changesets release workflow. | — |
