@@ -14,6 +14,7 @@ import {
 const NAV_ITEMS: Array<[string, string]> = [
   ["/", "Overview"],
   ["/jobs", "Jobs"],
+  ["/future-jobs", "Future Jobs"],
   ["/queues", "Queues"],
   ["/schedules", "Schedules"],
   ["/dead-letter", "Dead Letter"],
