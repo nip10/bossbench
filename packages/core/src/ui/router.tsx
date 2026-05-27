@@ -24,6 +24,7 @@ import { useConfig, useQueues } from "./lib/hooks";
 import {
   ActivityPage,
   DeadLetterPage,
+  FutureJobsPage,
   JobPage,
   MetricsPage,
   OverviewPage,
@@ -57,6 +58,11 @@ const jobsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "jobs",
   component: RunsPage,
+});
+const futureJobsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "future-jobs",
+  component: FutureJobsPage,
 });
 const jobRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -106,6 +112,7 @@ const settingsRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   overviewRoute,
   jobsRoute,
+  futureJobsRoute,
   jobRoute,
   queuesRoute,
   queueRoute,
@@ -169,41 +176,45 @@ function RootLayout() {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  const nav = location.pathname.startsWith("/jobs")
-    ? "jobs"
-    : location.pathname.startsWith("/queues")
-      ? "queues"
-      : location.pathname.startsWith("/schedules")
-        ? "schedules"
-        : location.pathname.startsWith("/dead-letter")
-          ? "dead-letter"
-          : location.pathname.startsWith("/warnings")
-            ? "warnings"
-            : location.pathname.startsWith("/metrics")
-              ? "metrics"
-              : location.pathname.startsWith("/activity")
-                ? "activity"
-                : location.pathname.startsWith("/settings")
-                  ? "settings"
-                  : "overview";
+  const nav = location.pathname.startsWith("/future-jobs")
+    ? "future-jobs"
+    : location.pathname.startsWith("/jobs")
+      ? "jobs"
+      : location.pathname.startsWith("/queues")
+        ? "queues"
+        : location.pathname.startsWith("/schedules")
+          ? "schedules"
+          : location.pathname.startsWith("/dead-letter")
+            ? "dead-letter"
+            : location.pathname.startsWith("/warnings")
+              ? "warnings"
+              : location.pathname.startsWith("/metrics")
+                ? "metrics"
+                : location.pathname.startsWith("/activity")
+                  ? "activity"
+                  : location.pathname.startsWith("/settings")
+                    ? "settings"
+                    : "overview";
   const title =
     nav === "overview"
       ? "Overview"
       : nav === "jobs"
         ? "Jobs"
-        : nav === "queues"
-          ? "Queues"
-          : nav === "schedules"
-            ? "Schedules"
-            : nav === "dead-letter"
-              ? "Dead Letter"
-              : nav === "warnings"
-                ? "Warnings"
-                : nav === "metrics"
-                  ? "Metrics"
-                  : nav === "activity"
-                    ? "Activity"
-                    : "Settings";
+        : nav === "future-jobs"
+          ? "Future Jobs"
+          : nav === "queues"
+            ? "Queues"
+            : nav === "schedules"
+              ? "Schedules"
+              : nav === "dead-letter"
+                ? "Dead Letter"
+                : nav === "warnings"
+                  ? "Warnings"
+                  : nav === "metrics"
+                    ? "Metrics"
+                    : nav === "activity"
+                      ? "Activity"
+                      : "Settings";
   const pageSubtitle = config
     ? `${config.schema ?? "pgboss"} • ${config.readonly || !config.hasBoss ? "browse-only" : "actions enabled"}`
     : "Loading…";

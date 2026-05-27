@@ -53,11 +53,17 @@ import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { api } from "./lib/api";
 import {
+  futureJobsDefaultSort,
+  futureJobsEmptyDescription,
+  futureJobsSubtitle,
+} from "./lib/future-jobs";
+import {
   queryKeys,
   queryPrefixes,
   useActivity,
   useConfig,
   useDeadLetter,
+  useFutureJobs,
   useJob,
   useJobs,
   useMetrics,
@@ -1157,6 +1163,233 @@ export function RunsPage() {
   );
 }
 
+export function FutureJobsPage() {
+  const { data: queues } = useQueues();
+  const { searchQuery, setSearchQuery } = useDashboardSearch();
+  const [queue, setQueue] = useState("all");
+  const [state, setState] = useState<BossbenchJobState | "all">("all");
+  const [limit, setLimit] = useState(25);
+  const [offset, setOffset] = useState(0);
+  const [sort, setSort] = useState<string | undefined>(futureJobsDefaultSort());
+  const currentSort = parseSort(sort);
+  const lastSearchQuery = useRef(searchQuery);
+  const shouldResetOffset = lastSearchQuery.current !== searchQuery;
+  const offsetForQuery = shouldResetOffset ? 0 : offset;
+  const filters = useMemo(
+    () => ({
+      ...(searchQuery ? { q: searchQuery } : {}),
+      ...(queue === "all" ? {} : { queue }),
+      ...(state === "all" ? {} : { state }),
+      ...(sort ? { sort } : {}),
+      limit,
+      offset: offsetForQuery,
+    }),
+    [searchQuery, queue, state, sort, limit, offsetForQuery],
+  );
+  const { data, isLoading, error } = useFutureJobs(filters);
+  const total = data?.total ?? 0;
+  const maxOffset = total > 0 ? Math.floor((total - 1) / limit) * limit : 0;
+  const safeOffset = data
+    ? Math.min(offsetForQuery, maxOffset)
+    : offsetForQuery;
+  const rows = data?.items ?? [];
+  const pageStart = total ? safeOffset + 1 : 0;
+  const pageEnd = total ? Math.min(safeOffset + limit, total) : 0;
+  const hasFilters = !!searchQuery || queue !== "all" || state !== "all";
+
+  useEffect(() => {
+    if (lastSearchQuery.current !== searchQuery) {
+      lastSearchQuery.current = searchQuery;
+      setOffset(0);
+    }
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (offset !== safeOffset) setOffset(safeOffset);
+  }, [offset, safeOffset]);
+
+  if (isLoading && !data)
+    return <EmptyState icon={LoaderCircle} title="Loading future jobs…" />;
+  if (error)
+    return (
+      <EmptyState
+        icon={AlertTriangle}
+        title="Future jobs unavailable"
+        description={error.message}
+      />
+    );
+
+  const updateSort = (
+    field: string | undefined,
+    direction: "asc" | "desc" | undefined,
+  ) => {
+    setOffset(0);
+    setSort(field && direction ? createSort(field, direction) : undefined);
+  };
+
+  return (
+    <Section
+      title="Future Jobs"
+      subtitle={futureJobsSubtitle(total, pageStart, pageEnd)}
+      actions={
+        <div className="jobs-toolbar">
+          <SmartSearch
+            value={searchQuery}
+            onValueChange={(value) => {
+              setOffset(0);
+              setSearchQuery(value);
+            }}
+            placeholder="Search future jobs…"
+          />
+          <div className="filter-grid">
+            <div className="job-filter">
+              <span>Queue</span>
+              <select
+                aria-label="Queue"
+                value={queue}
+                onChange={(event) => {
+                  setOffset(0);
+                  setQueue(event.target.value);
+                }}
+              >
+                <option value="all">All queues</option>
+                {(queues ?? []).map((item: { name: string }) => (
+                  <option key={item.name} value={item.name}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="job-filter">
+              <span>State</span>
+              <select
+                aria-label="State"
+                value={state}
+                onChange={(event) => {
+                  setOffset(0);
+                  setState(event.target.value as BossbenchJobState | "all");
+                }}
+              >
+                <option value="all">Created + retry</option>
+                <option value="created">Created</option>
+                <option value="retry">Retry</option>
+              </select>
+            </div>
+            <div className="job-filter">
+              <span>Page size</span>
+              <select
+                aria-label="Page size"
+                value={String(limit)}
+                onChange={(event) => {
+                  setOffset(0);
+                  setLimit(Number(event.target.value));
+                }}
+              >
+                {JOB_PAGE_SIZES.map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="pagination-row">
+            <div className="job-pagination">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() =>
+                  setOffset((current) => Math.max(0, current - limit))
+                }
+                disabled={safeOffset <= 0}
+              >
+                Previous
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setOffset((current) => current + limit)}
+                disabled={total <= safeOffset + limit}
+              >
+                Next
+              </Button>
+            </div>
+            <div className="job-pagination-info muted">
+              Future jobs are concrete pg-boss job rows with future start_after
+              timestamps. Schedules stay separate.
+            </div>
+          </div>
+        </div>
+      }
+    >
+      <Table
+        wrapperClassName="jobs-table-scroll"
+        tableClassName="jobs-table"
+        columns={[
+          "ID",
+          <SortableHeader
+            key="name"
+            field="name"
+            label="Queue"
+            currentSort={currentSort}
+            onSort={updateSort}
+          />,
+          <SortableHeader
+            key="state"
+            field="state"
+            label="State"
+            currentSort={currentSort}
+            onSort={updateSort}
+          />,
+          <SortableHeader
+            key="start_after"
+            field="start_after"
+            label="Starts"
+            currentSort={currentSort}
+            onSort={updateSort}
+          />,
+          <SortableHeader
+            key="created_on"
+            field="created_on"
+            label="Created"
+            currentSort={currentSort}
+            onSort={updateSort}
+          />,
+          <SortableHeader
+            key="priority"
+            field="priority"
+            label="Priority"
+            currentSort={currentSort}
+            onSort={updateSort}
+          />,
+        ]}
+        rows={rows.map((job: JobSummary) => [
+          <Link
+            key={job.id}
+            to="/jobs/$jobId"
+            params={{ jobId: job.id } as never}
+            className="mono"
+          >
+            {truncate(job.id, 12)}
+          </Link>,
+          job.queue,
+          <StatusBadge key={`${job.id}-state`} state={job.state} />,
+          <RelativeTime key={`${job.id}-starts`} timestamp={job.startAfter} />,
+          <RelativeTime key={`${job.id}-created`} timestamp={job.createdOn} />,
+          job.priority ?? "—",
+        ])}
+      />
+      {!rows.length ? (
+        <EmptyState
+          icon={Clock3}
+          title="No future jobs"
+          description={futureJobsEmptyDescription(hasFilters)}
+        />
+      ) : null}
+    </Section>
+  );
+}
+
 export function JobPage() {
   const params = useParams({ strict: false }) as { jobId: string };
   const queryClient = useQueryClient();
@@ -1481,6 +1714,7 @@ export function SchedulesPage() {
   const { data, isLoading, error } = useSchedules();
   const { data: config } = useConfig();
   const [actionState, setActionState] = useState<string | null>(null);
+  const [scheduleActionInFlight, setScheduleActionInFlight] = useState(false);
   const [scheduleName, setScheduleName] = useState("");
   const [scheduleCron, setScheduleCron] = useState("");
   const [scheduleData, setScheduleData] = useState("");
@@ -1498,6 +1732,8 @@ export function SchedulesPage() {
   const actionsEnabled = !!config?.hasBoss && !config.readonly;
 
   const createSchedule = async () => {
+    if (scheduleActionInFlight) return;
+    setScheduleActionInFlight(true);
     setActionState(`Scheduling ${scheduleName}…`);
     try {
       const parsedData = parseScheduleDataInput(scheduleData);
@@ -1513,10 +1749,14 @@ export function SchedulesPage() {
       setActionState(
         error instanceof Error ? error.message : "Schedule failed",
       );
+    } finally {
+      setScheduleActionInFlight(false);
     }
   };
 
   const unschedule = async (name: string) => {
+    if (scheduleActionInFlight) return;
+    setScheduleActionInFlight(true);
     setActionState(`Unscheduling ${name}…`);
     try {
       await api.unschedule(name);
@@ -1526,6 +1766,27 @@ export function SchedulesPage() {
       setActionState(
         error instanceof Error ? error.message : "Unschedule failed",
       );
+    } finally {
+      setScheduleActionInFlight(false);
+    }
+  };
+
+  const runNow = async (name: string) => {
+    if (scheduleActionInFlight) return;
+    setScheduleActionInFlight(true);
+    setActionState(`Running ${name} once now…`);
+    try {
+      const response = await api.runScheduleNow(name);
+      setActionState(
+        response.result.id
+          ? `Run now enqueued job ${response.result.id}. Refreshing…`
+          : "Run now requested, but pg-boss did not enqueue a job.",
+      );
+      window.setTimeout(() => window.location.reload(), 400);
+    } catch (error) {
+      setActionState(error instanceof Error ? error.message : "Run now failed");
+    } finally {
+      setScheduleActionInFlight(false);
     }
   };
 
@@ -1560,7 +1821,12 @@ export function SchedulesPage() {
           <button
             type="button"
             className="button"
-            disabled={!actionsEnabled || !scheduleName || !scheduleCron}
+            disabled={
+              !actionsEnabled ||
+              scheduleActionInFlight ||
+              !scheduleName ||
+              !scheduleCron
+            }
             onClick={createSchedule}
           >
             Create schedule
@@ -1583,15 +1849,25 @@ export function SchedulesPage() {
             <span className="mono" key={schedule.name}>
               {truncate(JSON.stringify(schedule.data ?? {}), 40)}
             </span>,
-            <button
-              type="button"
-              className="button"
-              key={`${schedule.name}-unschedule`}
-              disabled={!actionsEnabled}
-              onClick={() => unschedule(schedule.name)}
-            >
-              Unschedule
-            </button>,
+            <div className="filters" key={`${schedule.name}-actions`}>
+              <button
+                type="button"
+                className="button"
+                disabled={!actionsEnabled || scheduleActionInFlight}
+                onClick={() => runNow(schedule.name)}
+                title="Run this schedule once now without changing its cron cadence"
+              >
+                Run now
+              </button>
+              <button
+                type="button"
+                className="button danger"
+                disabled={!actionsEnabled || scheduleActionInFlight}
+                onClick={() => unschedule(schedule.name)}
+              >
+                Unschedule
+              </button>
+            </div>,
           ])}
         />
       ) : (

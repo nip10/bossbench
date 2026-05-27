@@ -4,6 +4,7 @@ import {
   BarChart3,
   Bell,
   Calendar,
+  Clock3,
   Database,
   Layers3,
   ListTodo,
@@ -16,6 +17,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 const items = [
   ["/", "Overview", Database],
   ["/jobs", "Jobs", ListTodo],
+  ["/future-jobs", "Future Jobs", Clock3],
   ["/queues", "Queues", Layers3],
   ["/schedules", "Schedules", Calendar],
   ["/dead-letter", "Dead Letter", Zap],
