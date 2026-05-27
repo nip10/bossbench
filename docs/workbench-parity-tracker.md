@@ -1,6 +1,8 @@
 # Workbench parity tracker
 
-Last updated: 2026-05-26
+Last updated: 2026-05-27
+
+Last upstream audit: 2026-05-26, [`pontusab/workbench@237beaf`](https://github.com/pontusab/workbench/commit/237beaf) after previously checked [`5e1bbf3`](https://github.com/pontusab/workbench/commit/5e1bbf307f160661e8729611774e531df2d3abe7).
 
 This document tracks Bossbench parity with upstream Workbench. Bossbench is pg-boss/Postgres-native, so parity does **not** mean copying BullMQ-only behavior. Every Workbench capability should be classified as implemented, adapted to pg-boss, planned, or intentionally unsupported.
 
@@ -16,16 +18,25 @@ This document tracks Bossbench parity with upstream Workbench. Bossbench is pg-b
 
 ## Current summary
 
-Bossbench is now strong in job operations, job detail, metrics, adapters, CLI, examples, and package release readiness. The largest remaining areas are dashboard shell polish, overview health signals, pg-boss data-model depth, ecosystem/docs polish, desktop, and maintaining this tracker as Workbench evolves.
+Bossbench is now strong in job operations, job detail, future-job exploration, schedule actions, metrics, adapters, CLI, examples, AI-search metadata, and package release readiness. The largest remaining areas are the actual MCP package, optional h3/Nuxt adapter expansion, deeper job error/timeline/manual-enqueue semantics, desktop, and maintaining this tracker as Workbench evolves.
 
 Open parity issues:
 
-- [#9 Dashboard UX parity with Workbench](https://github.com/nip10/bossbench/issues/9)
-- [#11 Metrics and observability parity](https://github.com/nip10/bossbench/issues/11)
-- [#12 pg-boss data model depth](https://github.com/nip10/bossbench/issues/12)
-- [#13 CLI, examples, docs, and release polish](https://github.com/nip10/bossbench/issues/13)
 - [#14 Desktop parity](https://github.com/nip10/bossbench/issues/14)
-- [#25 Overview health signals](https://github.com/nip10/bossbench/issues/25)
+- [#29 Desktop scaffold and onboarding](https://github.com/nip10/bossbench/issues/29)
+- [#30 Desktop secure connection profile storage](https://github.com/nip10/bossbench/issues/30)
+- [#31 Desktop pg-boss sidecar server](https://github.com/nip10/bossbench/issues/31)
+- [#32 Desktop dashboard UI reuse](https://github.com/nip10/bossbench/issues/32)
+- [#33 Desktop CI and release pipeline](https://github.com/nip10/bossbench/issues/33)
+- [#34 Desktop smoke tests](https://github.com/nip10/bossbench/issues/34)
+
+## Upstream audit log
+
+| Date | Upstream range | New upstream work | Bossbench follow-up |
+| --- | --- | --- | --- |
+| 2026-05-26 | [`5e1bbf3..237beaf`](https://github.com/pontusab/workbench/compare/5e1bbf307f160661e8729611774e531df2d3abe7...237beaf) | Workbench 0.5.0 added scheduler **Run now**, fixed delayed-tab separation for scheduler next-runs, rendered future timestamps as `in Xs`, added `@getworkbench/mcp`, expanded AI-search/LLM docs (`llms.txt`, robots, JSON-LD, launch blog), and added Astro/Bun/h3/Koa/Nuxt adapters/examples. | Completed pg-boss-safe future timestamps, future jobs, schedule Run now, AI-search metadata, MCP design, adapter evaluation, and dashboard follow-through in PRs #42–#48. Remaining follow-up: build the actual read-only `@bossbench/mcp` package and implement h3 only if adapter expansion proceeds. |
+
+When auditing upstream again, compare from the `Last upstream audit` commit above to `pontusab/workbench@main`, then append one row here and update the audit line.
 
 ## Dashboard UI and product surfaces
 
@@ -45,9 +56,11 @@ Open parity issues:
 | Job clone/requeue | Planned | Not implemented in the safe inspect/copy/export wave; requires pg-boss-specific manual enqueue/requeue design. | [#12](https://github.com/nip10/bossbench/issues/12) |
 | Job timeline | Gap | Workbench has richer timeline/timing visualization; Bossbench has summary timestamps and metrics. | [#9](https://github.com/nip10/bossbench/issues/9) |
 | Manual test/enqueue page | Planned | Workbench has a Test page/manual enqueue flow used by clone. Bossbench needs a pg-boss-safe design before adding this. | [#12](https://github.com/nip10/bossbench/issues/12) |
+| Scheduler "Run now" | Adapted | Bossbench exposes a pg-boss-safe Run now action that enqueues one immediate job from schedule metadata through `PgBoss.send()` without changing the cron cadence. | — |
+| Future timestamp copy | Implemented | Bossbench renders sub-day future relative times as `in Xs`, `in Xm`, and `in Xh`. | — |
 | Queue pages | Adapted | Bossbench has queue list and queue detail with counts/recent jobs. Workbench queue pages include deeper tabs, job browsing, bulk actions, and queue controls. | [#9](https://github.com/nip10/bossbench/issues/9), [#12](https://github.com/nip10/bossbench/issues/12) |
 | Schedulers/repeatables | Adapted | Bossbench uses pg-boss schedules instead of BullMQ repeatables. | [#12](https://github.com/nip10/bossbench/issues/12) |
-| Delayed/future jobs | Gap | Workbench exposes delayed jobs in its scheduler surface. Bossbench schedule management exists, but delayed/future job exploration is not yet a first-class surface. | [#12](https://github.com/nip10/bossbench/issues/12) |
+| Delayed/future jobs | Adapted | Bossbench has a dedicated Future Jobs page for concrete pg-boss job rows with future `start_after` values, keeping schedule metadata separate. | — |
 | Metrics dashboard | Adapted | Bossbench has summary cards, chart-style panels, and queue health tables. Workbench has BullMQ-specific slowest jobs and failing job types; Bossbench currently adapts these to queues. | [#11](https://github.com/nip10/bossbench/issues/11) |
 | Activity timeline | Adapted | Bossbench has activity page; Workbench folds similar activity into runs/metrics views. | — |
 | Settings/status page | Implemented | Bossbench has schema, readonly, boss presence, auth/tag guidance. | — |
@@ -62,7 +75,7 @@ Open parity issues:
 | `/api/counts` | Adapted | Bossbench exposes counts through overview, queues, and metrics rather than a dedicated counts endpoint. | — |
 | `/api/runs` | Adapted | Bossbench uses `/jobs` with filters/pagination. | — |
 | `/api/jobs/:queue/:id` | Adapted | Bossbench uses `/jobs/:id` and reads queue from the job row. | — |
-| Delayed jobs API | Gap | Bossbench does not yet expose a dedicated delayed/future jobs API beyond schedule reads and job state/date filters. | [#12](https://github.com/nip10/bossbench/issues/12) |
+| Delayed jobs API | Adapted | Bossbench exposes `/future-jobs` for concrete pg-boss jobs whose `start_after` is in the future. | — |
 | Retry/remove/promote | Adapted | Bossbench supports retry/cancel/resume/delete. Promote has no pg-boss equivalent. | — |
 | Bulk retry/delete/promote | Adapted | Bossbench supports bulk retry/cancel/delete. Bulk promote is a non-goal. | — |
 | Queue pause/resume | Non-goal | pg-boss has no durable queue pause/resume equivalent. | — |
@@ -73,6 +86,7 @@ Open parity issues:
 | Activity API | Implemented | Bossbench exposes activity buckets from pg-boss timestamps. | — |
 | Flow APIs | Non-goal | BullMQ-only concept. | — |
 | Test/enqueue API | Planned | Workbench exposes test enqueue. Bossbench should only add this as a pg-boss-safe manual enqueue/requeue flow. | [#12](https://github.com/nip10/bossbench/issues/12) |
+| Scheduler run-now API | Adapted | Bossbench exposes `POST /schedules/:name/run-now`, looks up schedule metadata, and enqueues through pg-boss without mutating recurrence. | — |
 | Read-only mutation guard | Implemented | Mutations return `READONLY_MODE` or `BOSS_INSTANCE_REQUIRED`. | — |
 | Basic auth | Implemented | Bossbench requires auth unless `allowUnauthenticated: true`. | — |
 | pg-boss schedules | Implemented | Bossbench adds `/schedules` and scheduler UI. | [#12](https://github.com/nip10/bossbench/issues/12) |
@@ -98,9 +112,15 @@ Open parity issues:
 | Elysia adapter | Implemented | `@bossbench/elysia`. | — |
 | NestJS adapter | Implemented | `@bossbench/nestjs`. | — |
 | Next.js adapter | Implemented | `@bossbench/next`. | — |
+| Astro adapter | Deferred | Workbench ships `@getworkbench/astro`; Bossbench should defer Astro unless user demand appears because it is less natural for an operational dashboard. | — |
+| Bun adapter | Deferred | Workbench ships `@getworkbench/bun`; Bossbench should prefer examples first because Hono/Elysia already cover many Bun deployments. | — |
+| h3 adapter | Planned | Adapter evaluation recommends `@bossbench/h3` as the first expansion if adapter breadth proceeds, with Nuxt/Nitro support built on top. | — |
+| Koa adapter | Deferred | Workbench ships `@getworkbench/koa`; Bossbench should defer Koa unless requested. | — |
+| Nuxt adapter | Planned | Nuxt should follow h3 as a thin wrapper or documented Nitro/h3 integration if demand exists. | — |
+| MCP server | Planned | Bossbench has an accepted read-only `@bossbench/mcp` design. Implementation remains pending. | — |
 | CLI initializer | Adapted | Bossbench CLI detects supported frameworks and injects pg-boss/Postgres setup. Docs can be clearer. | [#13](https://github.com/nip10/bossbench/issues/13) |
 | Framework examples | Implemented | Bossbench has `with-*` examples plus a seeded demo. | — |
-| Marketing/docs site | Implemented | Bossbench has Workbench-style marketing site adapted to pg-boss. | [#13](https://github.com/nip10/bossbench/issues/13) |
+| Marketing/docs site | Adapted | Bossbench has Workbench-style marketing site adapted to pg-boss plus `llms.txt`, AI-search robots policy, sitemap, and JSON-LD. Blog/MCP launch content can follow when MCP ships. | — |
 | Smoke tests | Implemented | Bossbench smoke covers package entrypoints and optional demo checks. | — |
 | CI | Implemented | Bossbench runs lint, commitlint, typecheck, tests, integration, build, and smoke. | — |
 | npm release workflow | Implemented | Bossbench uses Changesets release workflow. | — |
@@ -110,12 +130,11 @@ Open parity issues:
 
 ## Remaining priority order
 
-1. [#25 Overview health signals](https://github.com/nip10/bossbench/issues/25) — small, high-leverage follow-up to the metrics work.
-2. [#9 Dashboard UX parity](https://github.com/nip10/bossbench/issues/9) — shell/sidebar/command palette polish.
-3. [#12 pg-boss data model depth](https://github.com/nip10/bossbench/issues/12) — schedules, warnings, dead-letter, queue maintenance semantics.
-4. [#13 CLI/examples/docs/release polish](https://github.com/nip10/bossbench/issues/13) — public readiness.
-5. [#14 Desktop parity](https://github.com/nip10/bossbench/issues/14) — larger product/security track.
+1. Implement read-only `@bossbench/mcp` from the accepted MCP plan.
+2. Decide whether to ship `@bossbench/h3` as the first optional adapter expansion.
+3. Deepen pg-boss job detail: retry/error history, timeline, manual enqueue/requeue, and safe queue maintenance semantics.
+4. Continue desktop parity through [#14](https://github.com/nip10/bossbench/issues/14) and child issues [#29–#34](https://github.com/nip10/bossbench/issues?q=is%3Aissue%20state%3Aopen%20label%3Adesktop).
 
 ## Maintenance rule
 
-Update this document whenever a Workbench parity issue is opened, closed, or intentionally reclassified as a non-goal.
+Update this document whenever a Workbench parity issue is opened, closed, intentionally reclassified as a non-goal, or a new upstream audit is performed. For upstream audits, update `Last upstream audit` and append a row to `Upstream audit log` with the previous checked commit, new upstream head, grouped upstream changes, and Bossbench follow-ups.
