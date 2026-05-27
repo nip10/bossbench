@@ -18,6 +18,8 @@ export function normalizeOptions(
     schema,
     title: options.title ?? "Bossbench",
     readonly: options.readonly ?? !auth,
+    allowManualEnqueue: options.allowManualEnqueue ?? false,
+    allowQueueClean: options.allowQueueClean ?? false,
     tags: options.tags ?? [],
     basePath: options.basePath ?? "/",
   };

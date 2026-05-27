@@ -18,16 +18,11 @@ This document tracks Bossbench parity with upstream Workbench. Bossbench is pg-b
 
 ## Current summary
 
-Bossbench is now strong in job operations, job detail, future-job exploration, schedule actions, metrics, adapters, CLI, MCP, examples, AI-search metadata, and package release readiness. The largest remaining parity gaps versus current Workbench are expanded adapter breadth, standalone Docker deployment, the richer 0.6 dashboard command-center interactions, queue clean/manual enqueue semantics, and desktop.
+Bossbench is now strong in job operations, job detail, future-job exploration, schedule actions, manual enqueue/requeue, metrics, adapters, CLI, MCP, examples, AI-search metadata, and package release readiness. The largest remaining parity gaps versus current Workbench are expanded adapter breadth, queue clean design-only follow-up, deeper command-center polish, and desktop.
 
 Open parity issues:
 
-- [#56 Standalone Docker deployment](https://github.com/nip10/bossbench/issues/56)
-- [#57 Failed reason snippets in job lists](https://github.com/nip10/bossbench/issues/57)
-- [#58 Dashboard command-center polish](https://github.com/nip10/bossbench/issues/58)
 - [#59 pg-boss-safe queue clean semantics](https://github.com/nip10/bossbench/issues/59)
-- [#60 Manual enqueue/requeue flow](https://github.com/nip10/bossbench/issues/60)
-- [#61 h3 adapter](https://github.com/nip10/bossbench/issues/61)
 - [#62 Nuxt/Nitro integration](https://github.com/nip10/bossbench/issues/62)
 - [#63 AdonisJS adapter evaluation](https://github.com/nip10/bossbench/issues/63)
 - [#64 TanStack Start adapter evaluation](https://github.com/nip10/bossbench/issues/64)
@@ -65,10 +60,10 @@ When auditing upstream again, compare from the `Last upstream audit` commit abov
 | Job detail tabs | Adapted | Bossbench has summary, payload, output, timeline, raw tabs plus copy/export. Workbench also has BullMQ-specific logs/error detail that Bossbench adapts through pg-boss data. | [#12](https://github.com/nip10/bossbench/issues/12) |
 | Job error/retry history detail | Gap | Bossbench exposes retry count/limit and output/raw data; Workbench has richer error/retry/timeline detail. | [#12](https://github.com/nip10/bossbench/issues/12) |
 | Failed reason snippets in job lists | Implemented | Bossbench job summaries include safe, short failure snippets from pg-boss output and render them in job, queue, and dead-letter lists for failed jobs. | [#57](https://github.com/nip10/bossbench/issues/57) |
-| Job clone/requeue | Planned | Not implemented in the safe inspect/copy/export wave; requires pg-boss-specific manual enqueue/requeue design. | [#60](https://github.com/nip10/bossbench/issues/60) |
+| Job clone/requeue | Adapted | Bossbench adds a safe Enqueue copy action on job detail, backed by `PgBoss.send()` and gated by `allowManualEnqueue`. | [#60](https://github.com/nip10/bossbench/issues/60) |
 | Job timeline | Adapted | Bossbench has a pg-boss-native Timeline tab built from reliable job row data: created, start_after, started, terminal timestamp, retry count, and dead-letter presence. | — |
 | Job logs tab | Adapted | Workbench reads BullMQ `job.log()` output. pg-boss has no direct equivalent, so Bossbench adapts this as a Timeline tab rather than inventing a fake log stream. | — |
-| Manual test/enqueue page | Planned | Workbench has a Test page/manual enqueue flow used by clone. Bossbench needs a pg-boss-safe design before adding this. | [#60](https://github.com/nip10/bossbench/issues/60) |
+| Manual test/enqueue page | Adapted | Bossbench adds a compact queue-level manual enqueue panel with JSON-object payload parsing, gated by `allowManualEnqueue`. | [#60](https://github.com/nip10/bossbench/issues/60) |
 | Scheduler "Run now" | Adapted | Bossbench exposes a pg-boss-safe Run now action that enqueues one immediate job from schedule metadata through `PgBoss.send()` without changing the cron cadence. | — |
 | Future timestamp copy | Implemented | Bossbench renders sub-day future relative times as `in Xs`, `in Xm`, and `in Xh`. | — |
 | Queue pages | Adapted | Bossbench has queue list and queue detail with counts/recent jobs. Workbench queue pages include deeper tabs, job browsing, bulk actions, and queue controls. | [#9](https://github.com/nip10/bossbench/issues/9), [#12](https://github.com/nip10/bossbench/issues/12) |
@@ -92,13 +87,13 @@ When auditing upstream again, compare from the `Last upstream audit` commit abov
 | Retry/remove/promote | Adapted | Bossbench supports retry/cancel/resume/delete. Promote has no pg-boss equivalent. | — |
 | Bulk retry/delete/promote | Adapted | Bossbench supports bulk retry/cancel/delete. Bulk promote is a non-goal. | — |
 | Queue pause/resume | Non-goal | pg-boss has no durable queue pause/resume equivalent. | — |
-| Queue clean | Gap | Workbench 0.6 added clean completed/failed queue actions. No pg-boss-native queue-clean equivalent has been designed. | [#59](https://github.com/nip10/bossbench/issues/59) |
+| Queue clean | Planned | Safety design only; blocked on direct SQL policy/table resolution. | [#59](https://github.com/nip10/bossbench/issues/59) |
 | Search endpoint | Implemented | Bossbench `/search` delegates to SQL-backed job search. | — |
 | Tag values endpoint | Implemented | Bossbench exposes configured JSONB tag values. | — |
 | Metrics API | Adapted | Bossbench metrics are SQL-backed with summary, buckets, and queue health. Workbench's slowest/failing job-type metrics are adapted to pg-boss queue health. | [#11](https://github.com/nip10/bossbench/issues/11) |
 | Activity API | Implemented | Bossbench exposes activity buckets from pg-boss timestamps. | — |
 | Flow APIs | Non-goal | BullMQ-only concept. | — |
-| Test/enqueue API | Planned | Workbench exposes test enqueue. Bossbench should only add this as a pg-boss-safe manual enqueue/requeue flow. | [#12](https://github.com/nip10/bossbench/issues/12) |
+| Test/enqueue API | Adapted | Bossbench exposes pg-boss-safe manual enqueue and enqueue-copy APIs gated by `allowManualEnqueue`, using `PgBoss.send()` rather than direct SQL inserts. | [#60](https://github.com/nip10/bossbench/issues/60) |
 | Scheduler run-now API | Adapted | Bossbench exposes `POST /schedules/:name/run-now`, looks up schedule metadata, and enqueues through pg-boss without mutating recurrence. | — |
 | Read-only mutation guard | Implemented | Mutations return `READONLY_MODE` or `BOSS_INSTANCE_REQUIRED`. | — |
 | Basic auth | Implemented | Bossbench requires auth unless `allowUnauthenticated: true`. | — |
@@ -147,8 +142,8 @@ When auditing upstream again, compare from the `Last upstream audit` commit abov
 ## Remaining priority order
 
 1. Decide adapter expansion priority: h3/Nuxt first as previously recommended, or add AdonisJS/TanStack Start only if user demand appears.
-2. Decide whether Bossbench should ship a standalone read-only-first Docker image for external pg-boss databases.
-3. Deepen pg-boss job detail further: failed reason snippets, retry/error history, manual enqueue/requeue, and safe queue maintenance semantics.
+2. Resolve the queue-clean blocker: direct SQL policy, queue table resolution, and whether an audit log is required.
+3. Deepen pg-boss job detail further: retry/error history and safe queue maintenance semantics.
 4. Continue dashboard command-center polish: richer attention alerts, live cues, and optional collapsible sidebar behavior.
 5. Continue desktop parity through [#14](https://github.com/nip10/bossbench/issues/14) and child issues [#29–#34](https://github.com/nip10/bossbench/issues?q=is%3Aissue%20state%3Aopen%20label%3Adesktop).
 

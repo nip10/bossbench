@@ -11,6 +11,8 @@ describe("normalizeOptions", () => {
     expect(o.title).toBe("Bossbench");
     expect(o.readonly).toBe(true);
     expect(o.tags).toEqual([]);
+    expect(o.allowManualEnqueue).toBe(false);
+    expect(o.allowQueueClean).toBe(false);
   });
   it("enables mutations by default when auth is configured", () => {
     const o = normalizeOptions({

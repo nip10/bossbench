@@ -18,7 +18,10 @@ export class BossbenchCore {
         normalized.schema,
         normalized.tags,
       ),
-      new PgBossActionService(normalized.boss, normalized.readonly),
+      new PgBossActionService(normalized.boss, normalized.readonly, {
+        allowManualEnqueue: normalized.allowManualEnqueue,
+        allowQueueClean: normalized.allowQueueClean,
+      }),
     );
   }
   getConfig() {
@@ -29,6 +32,8 @@ export class BossbenchCore {
       readonly: this.options.readonly,
       tags: this.options.tags,
       hasBoss: !!this.options.boss,
+      allowManualEnqueue: this.options.allowManualEnqueue,
+      allowQueueClean: this.options.allowQueueClean,
     };
   }
   requiresAuth() {
