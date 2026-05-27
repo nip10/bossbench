@@ -122,6 +122,7 @@ textarea:focus-visible {
 }
 .shell {
   display: flex;
+  height: 100%;
   min-height: 100vh;
   background: var(--background);
 }
@@ -175,6 +176,8 @@ textarea:focus-visible {
   padding: 8px 8px 10px;
   display: grid;
   gap: 8px;
+  max-height: min(280px, 38vh);
+  overflow-y: auto;
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
 }

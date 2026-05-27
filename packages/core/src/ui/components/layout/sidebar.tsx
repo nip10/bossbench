@@ -11,6 +11,7 @@ import {
   Settings,
   Zap,
 } from "lucide-react";
+import { sidebarQueueListLimit } from "../../lib/dashboard-polish";
 import { Button } from "../ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
@@ -61,7 +62,7 @@ export function Sidebar({
       </div>
       {queues.length ? (
         <div className="sidebar-queues">
-          {queues.slice(0, 5).map((queue) => (
+          {queues.slice(0, sidebarQueueListLimit()).map((queue) => (
             <Tooltip key={queue}>
               <TooltipTrigger asChild>
                 <Link
