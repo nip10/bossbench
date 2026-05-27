@@ -762,6 +762,50 @@ select {
   color: var(--muted-foreground);
   font-size: 13px;
 }
+.job-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.job-timeline-event {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+.job-timeline-marker {
+  width: 10px;
+  height: 10px;
+  margin-top: 14px;
+  border-radius: 999px;
+  background: hsl(var(--primary));
+  box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.12);
+}
+.job-timeline-card {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.02);
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+.job-timeline-card p {
+  margin: 4px 0 0;
+  color: var(--muted-foreground);
+}
+.job-timeline-context-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+@media (max-width: 720px) {
+  .job-timeline-card {
+    display: grid;
+  }
+}
 .job-detail-meta-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
