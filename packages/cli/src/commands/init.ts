@@ -166,9 +166,15 @@ function buildEnvExample(existing: string | undefined, withAuth: boolean) {
 }
 
 function adapterPackageIsAvailable(framework: string) {
-  return ["hono", "express", "fastify", "elysia", "nestjs", "next"].includes(
-    framework,
-  );
+  return [
+    "hono",
+    "h3",
+    "express",
+    "fastify",
+    "elysia",
+    "nestjs",
+    "next",
+  ].includes(framework);
 }
 
 function installCommand(pm: string, framework: string, adapterPackage: string) {

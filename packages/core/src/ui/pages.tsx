@@ -52,6 +52,7 @@ import { StatusBadge } from "./components/shared/status-badge";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { api } from "./lib/api";
+import { buildOverviewAttentionSignals } from "./lib/dashboard-polish";
 import {
   futureJobsDefaultSort,
   futureJobsEmptyDescription,
@@ -79,6 +80,7 @@ import {
   jobExportFilename,
   stringifyForClipboard,
 } from "./lib/job-detail";
+import { failureSnippetForJobSummary } from "./lib/job-snippet";
 import { formatDurationMs, formatPercent, scaleValue } from "./lib/metrics";
 import { parseScheduleDataInput } from "./lib/schedules";
 import { truncate } from "./lib/utils";
@@ -270,6 +272,7 @@ export function OverviewPage() {
     (sum: number, value: number) => sum + value,
     0,
   );
+  const attentionSignals = buildOverviewAttentionSignals(overview, metricsData);
   const slowestQueues = [...(queueMetrics ?? [])].sort(
     (left, right) =>
       sortNullableDesc(left.avgDurationMs, right.avgDurationMs) ||
@@ -316,6 +319,27 @@ export function OverviewPage() {
           icon={Inbox}
         />
       </div>
+      <Section title="Attention" subtitle="Signals that need review right now">
+        {attentionSignals.length ? (
+          <div className="attention-grid">
+            {attentionSignals.map((signal) => (
+              <Link
+                key={`${signal.title}-${signal.value}`}
+                to={signal.href as never}
+                className={`attention-card attention-${signal.tone}`}
+              >
+                <div className="attention-card-kicker">{signal.title}</div>
+                <div className="attention-card-value">{signal.value}</div>
+                <div className="attention-card-detail">{signal.detail}</div>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="banner compact">
+            Command center clear: no urgent signals.
+          </div>
+        )}
+      </Section>
       <Section
         title="Health signals"
         subtitle="Metrics-driven throughput, latency, and queue health"
@@ -548,7 +572,14 @@ export function QueuePage() {
       <Section title={data.name} subtitle="Recent jobs">
         {data.recentJobs.length ? (
           <Table
-            columns={["Job", "State", "Created", "Completed", "Priority"]}
+            columns={[
+              "Job",
+              "State",
+              "Failure",
+              "Created",
+              "Completed",
+              "Priority",
+            ]}
             rows={data.recentJobs.map((job: JobSummary) => [
               <Link
                 key={job.id}
@@ -559,6 +590,7 @@ export function QueuePage() {
                 {truncate(job.name, 30)}
               </Link>,
               <StatusBadge key={`${job.id}-state`} state={job.state} />,
+              failureSnippetForJobSummary(job),
               <RelativeTime
                 key={`${job.id}-created`}
                 timestamp={job.createdOn}
@@ -1067,6 +1099,7 @@ export function RunsPage() {
           undefined,
           undefined,
           undefined,
+          undefined,
         ]}
         columns={[
           <input
@@ -1093,6 +1126,7 @@ export function RunsPage() {
             currentSort={currentSort}
             onSort={updateSort}
           />,
+          "Failure",
           <SortableHeader
             key="created_on"
             field="created_on"
@@ -1136,6 +1170,7 @@ export function RunsPage() {
           </Link>,
           job.queue,
           <StatusBadge key={`${job.id}-state`} state={job.state} />,
+          failureSnippetForJobSummary(job),
           <RelativeTime key={`${job.id}-created`} timestamp={job.createdOn} />,
           <RelativeTime
             key={`${job.id}-completed`}
@@ -1976,7 +2011,7 @@ export function DeadLetterPage() {
       </div>
       {jobs.length ? (
         <Table
-          columns={["ID", "Queue", "State", "Created"]}
+          columns={["ID", "Queue", "State", "Failure", "Created"]}
           rows={jobs.map((job: JobSummary) => [
             <Link
               key={job.id}
@@ -1988,6 +2023,7 @@ export function DeadLetterPage() {
             </Link>,
             job.queue,
             <StatusBadge key={`${job.id}-state`} state={job.state} />,
+            failureSnippetForJobSummary(job),
             <RelativeTime
               key={`${job.id}-created`}
               timestamp={job.createdOn}

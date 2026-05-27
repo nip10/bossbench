@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { expressInjector } from "./lib/inject/express.js";
+import { h3Injector } from "./lib/inject/h3.js";
 import { honoInjector } from "./lib/inject/hono.js";
 import { INJECTORS } from "./lib/inject/index.js";
 import { nextInjector } from "./lib/inject/next.js";
@@ -34,6 +35,25 @@ describe("injectors", () => {
     expect(result.source).not.toContain("change-me");
     expect(result.source).toContain("throw new Error");
     expect(result.source).not.toContain("DATABASE_URL!");
+  });
+
+  it("injects h3 mount", async () => {
+    const entry = await appFixture(
+      `import { createApp } from "h3";\nconst app = createApp();\nexport default app;\n`,
+    );
+    const result = await h3Injector({
+      entry,
+      mountPath: "/jobs",
+      withAuth: false,
+    });
+    expect(result.ok).toBe(true);
+    expect(result.source).toContain(
+      `import { bossbench } from "@bossbench/h3";`,
+    );
+    expect(result.source).toContain(`const bossbenchHandler = bossbench({`);
+    expect(result.source).toContain(`app.use("/jobs", bossbenchHandler);`);
+    expect(result.source).toContain(`app.use("/jobs/**", bossbenchHandler);`);
+    expect(result.source).toContain(`allowUnauthenticated: true`);
   });
 
   it("injects Express mount", async () => {
@@ -102,7 +122,7 @@ describe("injectors", () => {
   });
 
   it("generates live framework injectors", async () => {
-    for (const framework of ["fastify", "elysia", "nestjs"] as const) {
+    for (const framework of ["fastify", "elysia", "nestjs", "h3"] as const) {
       const entry = await appFixture(
         `const app = {} as any;\nexport default app;\n`,
       );

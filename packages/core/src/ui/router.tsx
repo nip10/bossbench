@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import {
   createRootRoute,
   createRoute,
@@ -6,7 +7,6 @@ import {
   useLocation,
   useNavigate,
 } from "@tanstack/react-router";
-import { RefreshCw } from "lucide-react";
 import * as React from "react";
 import { CommandPalette } from "./components/layout/command-palette";
 import { Header } from "./components/layout/header";
@@ -19,8 +19,8 @@ import {
   ShellSidebar,
 } from "./components/layout/shell";
 import { Sidebar } from "./components/layout/sidebar";
-import { Button } from "./components/ui/button";
-import { useConfig, useQueues } from "./lib/hooks";
+import { dashboardRefreshCue } from "./lib/dashboard-polish";
+import { queryKeys, useConfig, useQueues } from "./lib/hooks";
 import {
   ActivityPage,
   DeadLetterPage,
@@ -138,8 +138,10 @@ function RootLayout() {
   const navigate = useNavigate();
   const { data: config, isLoading } = useConfig();
   const { data: queues = [] } = useQueues();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = React.useState("");
   const [commandOpen, setCommandOpen] = React.useState(false);
+  const [refreshTick, setRefreshTick] = React.useState(0);
   const [isDark, setIsDark] = React.useState(() => {
     if (typeof window === "undefined") return true;
     const stored = localStorage.getItem("bossbench:theme");
@@ -174,6 +176,14 @@ function RootLayout() {
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  React.useEffect(() => {
+    const interval = window.setInterval(() => {
+      setRefreshTick((value) => value + 1);
+    }, 15_000);
+
+    return () => window.clearInterval(interval);
   }, []);
 
   const nav = location.pathname.startsWith("/future-jobs")
@@ -220,6 +230,16 @@ function RootLayout() {
     : "Loading…";
   const readonly = !!config?.readonly || !config?.hasBoss;
   const configuredTags = config?.tags ?? [];
+  void refreshTick;
+  const overviewUpdatedAt = queryClient.getQueryState(
+    queryKeys.overview,
+  )?.dataUpdatedAt;
+  const metricsUpdatedAt = queryClient.getQueryState(
+    queryKeys.metrics,
+  )?.dataUpdatedAt;
+  const refreshCue = dashboardRefreshCue(
+    Math.max(overviewUpdatedAt ?? 0, metricsUpdatedAt ?? 0) || null,
+  );
 
   if (isLoading || !config)
     return <div className="app-loading">Loading Bossbench…</div>;
@@ -242,22 +262,14 @@ function RootLayout() {
             <Header
               title={title}
               subtitle={pageSubtitle}
+              refreshCue={refreshCue}
               actions={
-                <>
-                  <HeaderSearch
-                    value={searchQuery}
-                    onValueChange={setSearchQuery}
-                    onFocus={() => setCommandOpen(true)}
-                    placeholder={nav === "jobs" ? "Search jobs…" : "Search…"}
-                  />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => window.location.reload()}
-                  >
-                    <RefreshCw size={16} />
-                  </Button>
-                </>
+                <HeaderSearch
+                  value={searchQuery}
+                  onValueChange={setSearchQuery}
+                  onFocus={() => setCommandOpen(true)}
+                  placeholder={nav === "jobs" ? "Search jobs…" : "Search…"}
+                />
               }
             />
           </ShellHeader>

@@ -1,0 +1,14 @@
+.git
+.worktrees
+node_modules
+**/node_modules
+dist
+**/dist
+.next
+**/.next
+.turbo
+**/.turbo
+coverage
+**/coverage
+.env
+.env.*

@@ -53,6 +53,7 @@ export interface JobSummary {
   name: string;
   queue: string;
   state: BossbenchJobState;
+  failureSnippet: string | null;
   createdOn: string | null;
   startAfter: string | null;
   startedOn: string | null;

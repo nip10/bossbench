@@ -1,0 +1,20 @@
+{
+  "name": "@bossbench/example-with-h3",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run src/index.ts",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@bossbench/h3": "workspace:*",
+    "h3": "^1.15.4",
+    "pg": "^8.13.1",
+    "pg-boss": "^12.18.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

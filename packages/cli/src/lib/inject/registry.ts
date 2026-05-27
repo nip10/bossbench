@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import type { Framework } from "../framework-detect.js";
 import { expressInjector } from "./express.js";
+import { h3Injector } from "./h3.js";
 import { honoInjector } from "./hono.js";
 import { nextInjector } from "./next.js";
 
@@ -18,6 +19,7 @@ type Injector = (input: {
 
 export const INJECTORS: Record<Framework, Injector> = {
   hono: honoInjector,
+  h3: h3Injector,
   express: expressInjector,
   fastify: fastifyInjector,
   elysia: elysiaInjector,

@@ -8,6 +8,7 @@ import { pathToFileURL } from "node:url";
 const PACKAGES = [
   "@bossbench/core",
   "@bossbench/hono",
+  "@bossbench/h3",
   "@bossbench/express",
   "@bossbench/fastify",
   "@bossbench/elysia",
@@ -20,12 +21,14 @@ const PACKAGES = [
 const DIST_CHECKS = [
   "packages/core/dist/index.js",
   "packages/hono/dist/index.js",
+  "packages/h3/dist/index.js",
   "packages/express/dist/index.js",
   "packages/fastify/dist/index.js",
   "packages/elysia/dist/index.js",
   "packages/next/dist/index.js",
   "packages/nestjs/dist/index.js",
   "packages/mcp/dist/index.js",
+  "apps/standalone/dist/index.js",
   "packages/cli/dist/index.js",
 ];
 
@@ -45,7 +48,18 @@ async function ensureBuild() {
   }
 
   console.log(`[smoke] building missing packages: ${missing.length}`);
-  await run(["bun", "run", "build"], "build");
+  for (const file of missing) {
+    const target = buildTargetForDist(file);
+    await run(["bun", "run", `--filter=${target}`, "build"], `build ${target}`);
+  }
+}
+
+function buildTargetForDist(file: string) {
+  if (file === "apps/standalone/dist/index.js") return "@bossbench/standalone";
+
+  const match = file.match(/^packages\/([^/]+)\//);
+  if (!match?.[1]) throw new Error(`No build target for ${file}`);
+  return `@bossbench/${match[1]}`;
 }
 
 async function verifyImports() {
@@ -54,6 +68,7 @@ async function verifyImports() {
   const [
     { BossbenchCore },
     { bossbench: honoBossbench },
+    { bossbench: h3Bossbench },
     { bossbench: expressBossbench },
     { bossbench: fastifyBossbench },
     { bossbench: elysiaBossbench },
@@ -63,6 +78,7 @@ async function verifyImports() {
   ] = await Promise.all([
     importPackage("packages/core/dist/index.js"),
     importPackage("packages/hono/dist/index.js"),
+    importPackage("packages/h3/dist/index.js"),
     importPackage("packages/express/dist/index.js"),
     importPackage("packages/fastify/dist/index.js"),
     importPackage("packages/elysia/dist/index.js"),
@@ -81,6 +97,8 @@ async function verifyImports() {
     throw new Error("@bossbench/core config missing title");
   if (!honoBossbench(options))
     throw new Error("@bossbench/hono failed to create app");
+  if (!h3Bossbench(options))
+    throw new Error("@bossbench/h3 failed to create handler");
   if (!expressBossbench(options))
     throw new Error("@bossbench/express failed to create router");
   if (!fastifyBossbench(options))

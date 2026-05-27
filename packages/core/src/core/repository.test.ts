@@ -43,3 +43,37 @@ describe("BossbenchRepository.listFutureJobs", () => {
     expect(result.items[0]?.startAfter).toBe("2026-05-26T12:00:00.000Z");
   });
 });
+
+describe("BossbenchRepository job summaries", () => {
+  it("includes a short failure snippet from pg-boss output", async () => {
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: "job-1",
+            name: "email",
+            queue: "email",
+            state: "failed",
+            created_on: new Date("2026-05-26T11:00:00.000Z"),
+            start_after: null,
+            started_on: new Date("2026-05-26T11:01:00.000Z"),
+            completed_on: new Date("2026-05-26T11:02:00.000Z"),
+            priority: 1,
+            data: { hello: "world" },
+            output: { message: "Retryable failure: smtp timeout" },
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ rows: [{ total: 1 }] });
+    const client = { query } as never;
+    const repository = new BossbenchRepository(client, "bossbench", []);
+
+    const result = await repository.listJobs({ state: "failed" });
+
+    expect(query.mock.calls[0]?.[0]).not.toContain(", error");
+    expect(result.items[0]?.failureSnippet).toBe(
+      "Retryable failure: smtp timeout",
+    );
+  });
+});

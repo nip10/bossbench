@@ -31,6 +31,7 @@ describe("detectFramework", () => {
       `import { Elysia } from "elysia";\nnew Elysia();`,
     ],
     ["next", { next: "^15" }, null],
+    ["h3", { h3: "^1" }, `import { createApp } from "h3";\ncreateApp();`],
     [
       "nestjs",
       { "@nestjs/core": "^10" },
@@ -60,5 +61,19 @@ describe("detectFramework", () => {
       dependencies as Record<string, string>,
     );
     expect(result?.framework).toBe(framework);
+  });
+
+  it("does not detect unsupported h3 event handler route files as injectable apps", async () => {
+    const cwd = await mkdtemp(join(tmpdir(), "bossbench-detect-"));
+    dirs.push(cwd);
+    await mkdir(join(cwd, "src"));
+    await writeFile(
+      join(cwd, "src/index.ts"),
+      `import { defineEventHandler } from "h3";\nexport default defineEventHandler(() => "ok");`,
+    );
+
+    const result = await detectFramework(cwd, { h3: "^1" });
+
+    expect(result).toBeNull();
   });
 });
