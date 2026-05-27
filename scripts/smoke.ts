@@ -13,6 +13,7 @@ const PACKAGES = [
   "@bossbench/elysia",
   "@bossbench/next",
   "@bossbench/nestjs",
+  "@bossbench/mcp",
   "@bossbench/cli",
 ] as const;
 
@@ -24,6 +25,7 @@ const DIST_CHECKS = [
   "packages/elysia/dist/index.js",
   "packages/next/dist/index.js",
   "packages/nestjs/dist/index.js",
+  "packages/mcp/dist/index.js",
   "packages/cli/dist/index.js",
 ];
 
@@ -57,6 +59,7 @@ async function verifyImports() {
     { bossbench: elysiaBossbench },
     { bossbench: nextBossbench },
     { bossbench: nestBossbench },
+    { BossbenchClient },
   ] = await Promise.all([
     importPackage("packages/core/dist/index.js"),
     importPackage("packages/hono/dist/index.js"),
@@ -65,6 +68,7 @@ async function verifyImports() {
     importPackage("packages/elysia/dist/index.js"),
     importPackage("packages/next/dist/index.js"),
     importPackage("packages/nestjs/dist/index.js"),
+    importPackage("packages/mcp/dist/index.js"),
   ]);
 
   const options = {
@@ -87,6 +91,8 @@ async function verifyImports() {
     throw new Error("@bossbench/next failed to create route handlers");
   if (typeof nestBossbench !== "function")
     throw new Error("@bossbench/nestjs export missing");
+  if (typeof BossbenchClient !== "function")
+    throw new Error("@bossbench/mcp export missing");
 
   await nestBossbench(mockNestApp("express"), "/jobs", options);
   await nestBossbench(mockNestApp("fastify"), "/jobs", options);
