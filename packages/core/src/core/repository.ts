@@ -323,11 +323,13 @@ export class BossbenchRepository {
 }
 
 function rowToJobSummary(row: Row): JobSummary {
+  const failureSnippet = summarizeFailureSnippet(row);
   return {
     id: String(row.id),
     name: String(row.name),
     queue: String(row.queue ?? row.name),
     state: row.state as BossbenchJobState,
+    failureSnippet,
     createdOn: stringOrNull(row.created_on),
     startAfter: stringOrNull(row.start_after),
     startedOn: stringOrNull(row.started_on),
@@ -336,6 +338,32 @@ function rowToJobSummary(row: Row): JobSummary {
     data: row.data ?? null,
     output: row.output ?? null,
   };
+}
+function summarizeFailureSnippet(row: Row) {
+  if (row.state !== "failed") return null;
+  return summarizeSnippet(row.output);
+}
+function summarizeSnippet(value: unknown) {
+  const text = toSnippetText(value);
+  if (!text) return null;
+  return text.length > 80 ? `${text.slice(0, 77)}...` : text;
+}
+function toSnippetText(value: unknown) {
+  if (typeof value === "string") return value.trim().replace(/\s+/g, " ");
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    for (const key of ["message", "error", "reason", "output", "detail"]) {
+      const candidate = record[key];
+      if (typeof candidate === "string" && candidate.trim())
+        return candidate.trim().replace(/\s+/g, " ");
+    }
+    try {
+      return JSON.stringify(value).slice(0, 120);
+    } catch {
+      return null;
+    }
+  }
+  return null;
 }
 function sortClause(sort?: string) {
   const allowed = new Set([

@@ -96,6 +96,7 @@ describe("route table /jobs parsing", () => {
         cron: "0 0 * * *",
         data: { nightly: true },
         opts: { singletonKey: "billing" },
+        created: null,
       },
     ]);
     const route = buildRouteTable(

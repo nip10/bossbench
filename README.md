@@ -7,7 +7,8 @@ Bossbench is inspired by Workbench's embedded dashboard model, but is pg-boss-na
 ## Features
 
 - Workbench-style embedded dashboard UI.
-- Hono, Express, Fastify, Elysia, NestJS, and Next.js adapters.
+- Hono, h3, Express, Fastify, Elysia, NestJS, and Next.js adapters.
+- A standalone read-only-first app for external pg-boss/Postgres deployments.
 - Queues, jobs, schedules, warnings, dead-letter, metrics, activity, and settings screens.
 - Actions for retry, cancel, resume, delete, schedule, and unschedule when a `PgBoss` instance is provided.
 - SQL-backed pagination, filtering, search, and configured JSON tag filters.
@@ -20,17 +21,35 @@ Bossbench is inspired by Workbench's embedded dashboard model, but is pg-boss-na
 npx @bossbench/cli init
 ```
 
-The CLI auto-injects Hono, Express, Fastify, Elysia, NestJS, and Next.js projects.
+The CLI auto-injects Hono, h3, Express, Fastify, Elysia, NestJS, and Next.js projects.
 
 ## Examples
 
 - `examples/demo` - seeded Hono demo
 - `examples/with-hono`
+- `examples/with-h3`
 - `examples/with-express`
 - `examples/with-fastify`
 - `examples/with-elysia`
 - `examples/with-nestjs`
 - `examples/with-next`
+
+## Standalone app
+
+Use `apps/standalone` to run Bossbench directly against an external pg-boss/Postgres database.
+
+Required env:
+
+- `DATABASE_URL`
+
+Optional env:
+
+- `PGBOSS_SCHEMA` (default `pgboss`)
+- `BASE_PATH` (default `/`)
+- `HOST` (default `0.0.0.0`)
+- `PORT` (default `3000`)
+- `BOSSBENCH_USER` / `BOSSBENCH_PASS`
+- `WRITABLE=true` (only enables mutations when auth is set)
 
 ## Local demo
 
@@ -154,6 +173,7 @@ CI runs oxlint, Biome, typechecks, unit tests, pg-boss/Postgres integration test
 
 - `@bossbench/core`
 - `@bossbench/hono`
+- `@bossbench/h3`
 - `@bossbench/express`
 - `@bossbench/fastify`
 - `@bossbench/elysia`

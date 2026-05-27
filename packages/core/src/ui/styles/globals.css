@@ -226,15 +226,119 @@ textarea:focus-visible {
   min-width: 0;
   flex: 1;
 }
+
+.header-copy {
+  min-width: 0;
+}
+
 .header-title h1 {
   margin: 0;
   font-size: 15px;
   font-weight: 600;
 }
+
+.header-subtitle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .header-title p {
   margin: 0;
   font-size: 12px;
   color: var(--muted-foreground);
+}
+
+.header-refresh-cue {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--foreground);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.attention-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.attention-card {
+  display: grid;
+  gap: 8px;
+  min-height: 132px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.045),
+    rgba(255, 255, 255, 0.015)
+  );
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
+  transition:
+    transform 120ms ease,
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+
+.attention-card:hover {
+  transform: translateY(-1px);
+}
+
+.attention-card-kicker {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.attention-card-value {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.attention-card-detail {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.attention-critical {
+  border-color: rgba(239, 68, 68, 0.28);
+  background: linear-gradient(
+    180deg,
+    rgba(239, 68, 68, 0.08),
+    rgba(255, 255, 255, 0.015)
+  );
+}
+
+.attention-warning {
+  border-color: rgba(245, 158, 11, 0.28);
+  background: linear-gradient(
+    180deg,
+    rgba(245, 158, 11, 0.08),
+    rgba(255, 255, 255, 0.015)
+  );
+}
+
+.attention-info {
+  border-color: rgba(59, 130, 246, 0.28);
+  background: linear-gradient(
+    180deg,
+    rgba(59, 130, 246, 0.08),
+    rgba(255, 255, 255, 0.015)
+  );
 }
 .header-actions {
   display: flex;

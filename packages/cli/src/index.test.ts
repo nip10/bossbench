@@ -95,6 +95,25 @@ describe("init", () => {
     expect(result?.install).toContain("npm add @bossbench/fastify");
   });
 
+  it("prints install commands for h3 projects", async () => {
+    const cwd = await fixture({
+      dependencies: { h3: "^1.0.0" },
+      entry: `import { createApp } from "h3";\nconst app = createApp();\nexport default app;\n`,
+    });
+
+    const result = await init({
+      cwd,
+      mount: "/jobs",
+      auth: true,
+      docker: false,
+      yes: true,
+      dryRun: true,
+    });
+
+    expect(result?.framework).toBe("h3");
+    expect(result?.install).toContain("npm add @bossbench/h3 pg pg-boss");
+  });
+
   it("includes a default Nest platform adapter in install guidance", async () => {
     const cwd = await fixture({
       dependencies: { "@nestjs/core": "^10.0.0" },

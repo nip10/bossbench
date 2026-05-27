@@ -5,6 +5,7 @@ import fg from "fast-glob";
 
 export type Framework =
   | "hono"
+  | "h3"
   | "express"
   | "fastify"
   | "elysia"
@@ -17,6 +18,7 @@ export interface DetectionResult {
 }
 const PKG: Record<Framework, string> = {
   hono: "hono",
+  h3: "h3",
   express: "express",
   fastify: "fastify",
   elysia: "elysia",
@@ -25,6 +27,7 @@ const PKG: Record<Framework, string> = {
 };
 const ADAPTER: Record<Framework, string> = {
   hono: "@bossbench/hono",
+  h3: "@bossbench/h3",
   express: "@bossbench/express",
   fastify: "@bossbench/fastify",
   elysia: "@bossbench/elysia",
@@ -37,6 +40,7 @@ const ORDER: Framework[] = [
   "elysia",
   "fastify",
   "express",
+  "h3",
   "hono",
 ];
 
@@ -67,13 +71,15 @@ async function findEntry(cwd: string, framework: Exclude<Framework, "next">) {
   const regex =
     framework === "hono"
       ? /new\s+Hono\s*\(/
-      : framework === "express"
-        ? /express\s*\(/
-        : framework === "fastify"
-          ? /(?:\bfastify\s*\(|\bFastify\s*\()/
-          : framework === "elysia"
-            ? /new\s+Elysia\s*\(/
-            : /NestFactory\s*\.\s*create\s*\(/;
+      : framework === "h3"
+        ? /createApp\s*\(/
+        : framework === "express"
+          ? /express\s*\(/
+          : framework === "fastify"
+            ? /(?:\bfastify\s*\(|\bFastify\s*\()/
+            : framework === "elysia"
+              ? /new\s+Elysia\s*\(/
+              : /NestFactory\s*\.\s*create\s*\(/;
   const files = await fg(
     [
       "src/**/*.{ts,tsx,js,mjs}",
