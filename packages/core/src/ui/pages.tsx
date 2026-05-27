@@ -75,6 +75,7 @@ import {
 } from "./lib/hooks";
 import {
   buildJobExport,
+  buildJobTimeline,
   jobExportFilename,
   stringifyForClipboard,
 } from "./lib/job-detail";
@@ -192,7 +193,7 @@ type BulkActionState =
     }
   | null;
 
-type JobDetailTab = "summary" | "payload" | "output" | "raw";
+type JobDetailTab = "summary" | "payload" | "output" | "timeline" | "raw";
 
 type JobFeedbackState = {
   kind: "running" | "success" | "error";
@@ -1465,8 +1466,16 @@ export function JobPage() {
     { value: "summary", label: "Summary" },
     { value: "payload", label: "Payload" },
     { value: "output", label: "Output" },
+    { value: "timeline", label: "Timeline" },
     { value: "raw", label: "Raw" },
   ];
+  const timeline = buildJobTimeline(job);
+  const timelineEvents = timeline.filter(
+    (event) => event.display === "timeline",
+  );
+  const timelineContext = timeline.filter(
+    (event) => event.display === "context",
+  );
 
   const focusTab = (tab: JobDetailTab) => {
     window.requestAnimationFrame(() => {
@@ -1661,6 +1670,57 @@ export function JobPage() {
               defaultExpanded={false}
               onCopy={() => void copyJson("Output", job.output ?? null)}
             />
+          </div>,
+        )}
+
+        {renderPanel(
+          "timeline",
+          <div className="job-detail-panel-content">
+            <div className="job-detail-panel-head">
+              <div>
+                <h3>Timeline</h3>
+                <p>
+                  pg-boss lifecycle events and context derived from reliable job
+                  row data.
+                </p>
+              </div>
+            </div>
+            <ol className="job-timeline">
+              {timelineEvents.map((event) => (
+                <li
+                  className="job-timeline-event"
+                  key={`${event.kind}-${event.title}`}
+                >
+                  <div className="job-timeline-marker" aria-hidden="true" />
+                  <div className="job-timeline-card">
+                    <div>
+                      <strong>{event.title}</strong>
+                      <p>{event.description}</p>
+                    </div>
+                    <span className="muted">
+                      {event.timestamp ? (
+                        <RelativeTime timestamp={event.timestamp} />
+                      ) : (
+                        "No timestamp"
+                      )}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ol>
+            {timelineContext.length ? (
+              <div className="job-timeline-context-grid">
+                {timelineContext.map((event) => (
+                  <div
+                    className="job-detail-meta-card"
+                    key={`${event.kind}-${event.title}`}
+                  >
+                    <span>{event.title}</span>
+                    <strong>{event.description}</strong>
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </div>,
         )}
 

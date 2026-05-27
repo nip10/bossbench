@@ -52,11 +52,11 @@ When auditing upstream again, compare from the `Last upstream audit` commit abov
 | Queue overview cards/grid | Adapted | Bossbench has queue table and detail pages; Workbench queue cards are visually richer. | [#9](https://github.com/nip10/bossbench/issues/9) |
 | Jobs/runs list | Implemented | Bossbench supports search, queue/state/date/tag filters, sorting, pagination, and bulk actions. | — |
 | Bulk job actions | Adapted | Bossbench supports bulk retry/cancel/delete. Bulk promote is a BullMQ-only non-goal. | — |
-| Job detail tabs | Adapted | Bossbench has summary, payload, output, raw tabs plus copy/export. Workbench also has error/retries/timeline views. | [#9](https://github.com/nip10/bossbench/issues/9), [#12](https://github.com/nip10/bossbench/issues/12) |
+| Job detail tabs | Adapted | Bossbench has summary, payload, output, timeline, raw tabs plus copy/export. Workbench also has BullMQ-specific logs/error detail that Bossbench adapts through pg-boss data. | [#12](https://github.com/nip10/bossbench/issues/12) |
 | Job error/retry history detail | Gap | Bossbench exposes retry count/limit and output/raw data; Workbench has richer error/retry/timeline detail. | [#12](https://github.com/nip10/bossbench/issues/12) |
 | Job clone/requeue | Planned | Not implemented in the safe inspect/copy/export wave; requires pg-boss-specific manual enqueue/requeue design. | [#12](https://github.com/nip10/bossbench/issues/12) |
-| Job timeline | Gap | Workbench has richer timeline/timing visualization; Bossbench has summary timestamps and metrics. | [#9](https://github.com/nip10/bossbench/issues/9) |
-| Job logs tab | Planned | Workbench reads BullMQ `job.log()` output. pg-boss has no direct equivalent, so Bossbench should design a Timeline/Events/History tab from reliable pg-boss/Postgres data. | [#53](https://github.com/nip10/bossbench/issues/53) |
+| Job timeline | Adapted | Bossbench has a pg-boss-native Timeline tab built from reliable job row data: created, start_after, started, terminal timestamp, retry count, and dead-letter presence. | — |
+| Job logs tab | Adapted | Workbench reads BullMQ `job.log()` output. pg-boss has no direct equivalent, so Bossbench adapts this as a Timeline tab rather than inventing a fake log stream. | — |
 | Manual test/enqueue page | Planned | Workbench has a Test page/manual enqueue flow used by clone. Bossbench needs a pg-boss-safe design before adding this. | [#12](https://github.com/nip10/bossbench/issues/12) |
 | Scheduler "Run now" | Adapted | Bossbench exposes a pg-boss-safe Run now action that enqueues one immediate job from schedule metadata through `PgBoss.send()` without changing the cron cadence. | — |
 | Future timestamp copy | Implemented | Bossbench renders sub-day future relative times as `in Xs`, `in Xm`, and `in Xh`. | — |
@@ -119,7 +119,7 @@ When auditing upstream again, compare from the `Last upstream audit` commit abov
 | h3 adapter | Planned | Adapter evaluation recommends `@bossbench/h3` as the first expansion if adapter breadth proceeds, with Nuxt/Nitro support built on top. | — |
 | Koa adapter | Deferred | Workbench ships `@getworkbench/koa`; Bossbench should defer Koa unless requested. | — |
 | Nuxt adapter | Planned | Nuxt should follow h3 as a thin wrapper or documented Nitro/h3 integration if demand exists. | — |
-| MCP server | Planned | Bossbench has an accepted read-only `@bossbench/mcp` design. Implementation remains pending. | — |
+| MCP server | Implemented | Bossbench ships `@bossbench/mcp`, a read-only stdio MCP server that proxies existing dashboard APIs. | — |
 | CLI initializer | Adapted | Bossbench CLI detects supported frameworks and injects pg-boss/Postgres setup. Docs can be clearer. | [#13](https://github.com/nip10/bossbench/issues/13) |
 | Framework examples | Implemented | Bossbench has `with-*` examples plus a seeded demo. | — |
 | Marketing/docs site | Adapted | Bossbench has Workbench-style marketing site adapted to pg-boss plus `llms.txt`, AI-search robots policy, sitemap, JSON-LD, and app-icon metadata. Blog/MCP launch content can follow when MCP ships. | — |
@@ -132,10 +132,9 @@ When auditing upstream again, compare from the `Last upstream audit` commit abov
 
 ## Remaining priority order
 
-1. Implement read-only `@bossbench/mcp` from the accepted MCP plan.
-2. Decide whether to ship `@bossbench/h3` as the first optional adapter expansion.
-3. Deepen pg-boss job detail: retry/error history, timeline, manual enqueue/requeue, and safe queue maintenance semantics.
-4. Continue desktop parity through [#14](https://github.com/nip10/bossbench/issues/14) and child issues [#29–#34](https://github.com/nip10/bossbench/issues?q=is%3Aissue%20state%3Aopen%20label%3Adesktop).
+1. Decide whether to ship `@bossbench/h3` as the first optional adapter expansion.
+2. Deepen pg-boss job detail further: retry/error history, manual enqueue/requeue, and safe queue maintenance semantics.
+3. Continue desktop parity through [#14](https://github.com/nip10/bossbench/issues/14) and child issues [#29–#34](https://github.com/nip10/bossbench/issues?q=is%3Aissue%20state%3Aopen%20label%3Adesktop).
 
 ## Maintenance rule
 
