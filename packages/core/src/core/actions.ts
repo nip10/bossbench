@@ -24,6 +24,14 @@ export class PgBossActionService {
   ensureAvailable() {
     this.ensure();
   }
+  ensureQueueCleanAvailable() {
+    this.ensure();
+    if (!this.capabilities.allowQueueClean)
+      throw actionError(
+        "QUEUE_CLEAN_DISABLED",
+        "Queue clean preview is disabled",
+      );
+  }
   async retryJob(name: string, id: string) {
     return this.ensure().retry(name, id);
   }

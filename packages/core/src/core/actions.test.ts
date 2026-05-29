@@ -15,6 +15,39 @@ describe("actions", () => {
       code: "BOSS_INSTANCE_REQUIRED",
     });
   });
+  it("blocks queue clean preview when readonly", async () => {
+    const s = new PgBossActionService({} as unknown as PgBoss, true, {
+      allowQueueClean: true,
+    });
+    try {
+      s.ensureQueueCleanAvailable();
+      throw new Error("expected failure");
+    } catch (error) {
+      expect(error).toMatchObject({ code: "READONLY_MODE" });
+    }
+  });
+  it("blocks queue clean preview when boss is missing", async () => {
+    const s = new PgBossActionService(undefined, false, {
+      allowQueueClean: true,
+    });
+    try {
+      s.ensureQueueCleanAvailable();
+      throw new Error("expected failure");
+    } catch (error) {
+      expect(error).toMatchObject({ code: "BOSS_INSTANCE_REQUIRED" });
+    }
+  });
+  it("blocks queue clean preview when disabled", async () => {
+    const s = new PgBossActionService({} as unknown as PgBoss, false, {
+      allowQueueClean: false,
+    });
+    try {
+      s.ensureQueueCleanAvailable();
+      throw new Error("expected failure");
+    } catch (error) {
+      expect(error).toMatchObject({ code: "QUEUE_CLEAN_DISABLED" });
+    }
+  });
   it("calls pg-boss job methods with queue name and id", async () => {
     const boss = {
       retry: vi.fn(),

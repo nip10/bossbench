@@ -77,3 +77,51 @@ describe("BossbenchRepository job summaries", () => {
     );
   });
 });
+
+describe("BossbenchRepository.previewQueueClean", () => {
+  it("builds a preview query for completed and failed jobs older than the cutoff", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-29T12:00:00.000Z"));
+    const query = vi.fn().mockResolvedValueOnce({
+      rows: [
+        {
+          matchedCount: 2,
+          sampleIds: ["job-1", "job-2"],
+          hasMore: true,
+        },
+      ],
+    });
+    const client = { query } as never;
+    const repository = new BossbenchRepository(client, "bossbench", []);
+
+    const result = await repository.previewQueueClean("email", {
+      state: "completed",
+      olderThanSeconds: 7200,
+      limit: 25,
+    });
+
+    expect(query.mock.calls[0]?.[0]).toContain("name = $1");
+    expect(query.mock.calls[0]?.[0]).toContain("state = $2");
+    expect(query.mock.calls[0]?.[0]).toContain("completed_on is not null");
+    expect(query.mock.calls[0]?.[0]).toContain(
+      "completed_on < $3::timestamptz",
+    );
+    expect(query.mock.calls[0]?.[0]).toContain("limit $4");
+    expect(query.mock.calls[0]?.[1]).toEqual([
+      "email",
+      "completed",
+      "2026-05-29T10:00:00.000Z",
+      25,
+    ]);
+
+    expect(result).toEqual({
+      queue: "email",
+      state: "completed",
+      matched: 2,
+      sampleIds: ["job-1", "job-2"],
+      hasMore: true,
+      cutoff: "2026-05-29T10:00:00.000Z",
+    });
+    vi.useRealTimers();
+  });
+});

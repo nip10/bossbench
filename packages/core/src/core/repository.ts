@@ -11,6 +11,8 @@ import type {
   OverviewStats,
   PaginatedResponse,
   QueryFilters,
+  QueueCleanPreviewRequest,
+  QueueCleanPreviewResult,
   QueueDetail,
   QueueInfo,
   QueueMetricSummary,
@@ -258,6 +260,49 @@ export class BossbenchRepository {
   }
   async getDeadLetter(): Promise<PaginatedResponse<JobSummary>> {
     return this.listJobs({ state: "failed", limit: 100 });
+  }
+
+  async previewQueueClean(
+    queue: string,
+    request: QueueCleanPreviewRequest,
+  ): Promise<QueueCleanPreviewResult> {
+    const limit = clamp(request.limit ?? 1000, 1, 5000);
+    const cutoff = new Date(
+      Date.now() - request.olderThanSeconds * 1000,
+    ).toISOString();
+    const rows = await this.withClient((c) =>
+      this.safeQuery<Row>(
+        c,
+        `with filtered as (
+           select id, completed_on
+           from ${this.q("job")}
+           where name = $1
+             and state = $2
+             and completed_on is not null
+             and completed_on < $3::timestamptz
+         ), sampled as (
+           select id, completed_on
+           from filtered
+           order by completed_on asc, id asc
+           limit $4
+         )
+         select
+           (select count(*)::int from filtered) as "matchedCount",
+           coalesce(array_agg(id::text order by completed_on asc, id asc), '{}'::text[]) as "sampleIds",
+           (select count(*) from filtered) > $4 as "hasMore"
+         from sampled`,
+        [queue, request.state, cutoff, limit],
+      ),
+    );
+    const row = rows[0] ?? {};
+    return {
+      queue,
+      state: request.state,
+      matched: numberOrDefault(row.matchedCount, 0),
+      sampleIds: Array.isArray(row.sampleIds) ? row.sampleIds.map(String) : [],
+      hasMore: Boolean(row.hasMore),
+      cutoff,
+    };
   }
 
   private async countJobs(where: string[], args: unknown[]) {

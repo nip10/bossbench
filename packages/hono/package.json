@@ -2,6 +2,7 @@
   "name": "@bossbench/hono",
   "version": "0.1.0",
   "description": "Hono adapter for Bossbench, an embedded pg-boss dashboard.",
+  "homepage": "https://github.com/nip10/bossbench/tree/main/packages/hono#readme",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -11,6 +12,13 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "keywords": [
+    "pg-boss",
+    "bossbench",
+    "hono",
+    "adapter",
+    "dashboard"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

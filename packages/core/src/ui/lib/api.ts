@@ -10,6 +10,8 @@ import type {
   OverviewStats,
   PaginatedResponse,
   QueryFilters,
+  QueueCleanPreviewRequest,
+  QueueCleanPreviewResult,
   QueueDetail,
   QueueInfo,
   ScheduleInfo,
@@ -108,6 +110,14 @@ export const api = {
   enqueueJob: (queue: string, request: EnqueueJobRequest) =>
     fetchJson<MutationResponse<EnqueueJobResult>>(
       `/queues/${encodeURIComponent(queue)}/enqueue`,
+      {
+        method: "POST",
+        body: JSON.stringify(request),
+      },
+    ),
+  previewQueueClean: (queue: string, request: QueueCleanPreviewRequest) =>
+    fetchJson<MutationResponse<QueueCleanPreviewResult>>(
+      `/queues/${encodeURIComponent(queue)}/clean-preview`,
       {
         method: "POST",
         body: JSON.stringify(request),

@@ -45,6 +45,114 @@ describe("route table /jobs parsing", () => {
     });
   });
 
+  it("validates queue clean preview requests", async () => {
+    const previewQueueClean = vi.fn();
+    const route = buildRouteTable(
+      fakeCore(vi.fn(), { previewQueueClean }) as never,
+    ).find(
+      (candidate) =>
+        candidate.method === "post" &&
+        candidate.path === "/queues/:name/clean-preview",
+    );
+
+    expect(route).toBeDefined();
+    assertRoute(route);
+
+    await expect(
+      route.handler({
+        params: { name: "email" },
+        query: {},
+        body: { state: "created", olderThanSeconds: 100 },
+      }),
+    ).resolves.toMatchObject({
+      status: 400,
+      body: { error: { code: "INVALID_FILTER" } },
+    });
+    expect(previewQueueClean).not.toHaveBeenCalled();
+  });
+
+  it("invokes queue clean preview repository read", async () => {
+    const previewQueueClean = vi.fn().mockResolvedValue({
+      queue: "email",
+      state: "completed",
+      matched: 3,
+      sampleIds: ["job-1"],
+      hasMore: false,
+      cutoff: "2026-05-25T12:00:00.000Z",
+    });
+    const route = buildRouteTable(
+      fakeCore(vi.fn(), { previewQueueClean }) as never,
+    ).find(
+      (candidate) =>
+        candidate.method === "post" &&
+        candidate.path === "/queues/:name/clean-preview",
+    );
+
+    expect(route).toBeDefined();
+    assertRoute(route);
+
+    const result = await route.handler({
+      params: { name: "email" },
+      query: {},
+      body: { state: "completed", olderThanSeconds: 7200, limit: 10 },
+    });
+
+    expect(result).toEqual({
+      status: 200,
+      body: {
+        ok: true,
+        result: {
+          queue: "email",
+          state: "completed",
+          matched: 3,
+          sampleIds: ["job-1"],
+          hasMore: false,
+          cutoff: "2026-05-25T12:00:00.000Z",
+        },
+      },
+    });
+    expect(previewQueueClean).toHaveBeenCalledWith("email", {
+      state: "completed",
+      olderThanSeconds: 7200,
+      limit: 10,
+    });
+  });
+
+  it("returns a 409 when queue clean preview is disabled", async () => {
+    const previewQueueClean = vi.fn();
+    const ensureQueueCleanAvailable = vi.fn(() => {
+      throw Object.assign(new Error("Queue clean preview is disabled"), {
+        code: "QUEUE_CLEAN_DISABLED",
+      });
+    });
+    const route = buildRouteTable(
+      fakeCore(
+        vi.fn(),
+        { previewQueueClean },
+        { ensureQueueCleanAvailable },
+      ) as never,
+    ).find(
+      (candidate) =>
+        candidate.method === "post" &&
+        candidate.path === "/queues/:name/clean-preview",
+    );
+
+    expect(route).toBeDefined();
+    assertRoute(route);
+
+    await expect(
+      route.handler({
+        params: { name: "email" },
+        query: {},
+        body: { state: "completed", olderThanSeconds: 7200 },
+      }),
+    ).resolves.toMatchObject({
+      status: 409,
+      body: { error: { code: "QUEUE_CLEAN_DISABLED" } },
+    });
+    expect(previewQueueClean).not.toHaveBeenCalled();
+  });
+
   it("passes parsed filters to repository.listFutureJobs for GET /future-jobs", async () => {
     const listFutureJobs = vi.fn().mockResolvedValue({
       items: [],
@@ -612,10 +720,12 @@ function fakeCore(
         pageSize: 50,
         total: 0,
       })),
+      previewQueueClean: vi.fn(),
       ...repositoryOverrides,
     },
     actions: {
       ensureAvailable: vi.fn(),
+      ensureQueueCleanAvailable: vi.fn(),
       retryJob: vi.fn(),
       cancelJob: vi.fn(),
       resumeJob: vi.fn(),

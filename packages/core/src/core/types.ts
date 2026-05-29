@@ -171,3 +171,18 @@ export interface CloneJobResult extends EnqueueJobResult {
   sourceJobId: string;
   queue: string;
 }
+
+export interface QueueCleanPreviewRequest {
+  state: Extract<BossbenchJobState, "completed" | "failed">;
+  olderThanSeconds: number;
+  limit?: number;
+}
+
+export interface QueueCleanPreviewResult {
+  queue: string;
+  state: Extract<BossbenchJobState, "completed" | "failed">;
+  matched: number;
+  sampleIds: string[];
+  hasMore: boolean;
+  cutoff: string;
+}

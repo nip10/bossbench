@@ -2,6 +2,7 @@
   "name": "@bossbench/mcp",
   "version": "0.1.0",
   "description": "Model Context Protocol server for Bossbench.",
+  "homepage": "https://github.com/nip10/bossbench/tree/main/packages/mcp#readme",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -12,6 +13,13 @@
   "bin": {
     "bossbench-mcp": "./dist/cli.js"
   },
+  "keywords": [
+    "pg-boss",
+    "bossbench",
+    "mcp",
+    "model-context-protocol",
+    "dashboard"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

@@ -25,7 +25,7 @@ export function CopyCommand({
   if (variant === "inline") {
     return (
       <button type="button" onClick={copy} className="copy-command inline">
-        <span>{command}</span>
+        <span className="command-text">{command}</span>
         {copied ? (
           <CheckIcon className="icon" />
         ) : (
@@ -38,7 +38,7 @@ export function CopyCommand({
   return (
     <button type="button" onClick={copy} className="copy-command">
       <span className="prefix">$</span>
-      <span>{command}</span>
+      <span className="command-text">{command}</span>
       {copied ? <CheckIcon className="icon" /> : <CopyIcon className="icon" />}
     </button>
   );

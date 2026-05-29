@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "description": "Open-source pg-boss dashboard. Drop-in for modern Node backends.",
+  "homepage": "https://github.com/nip10/bossbench#readme",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -12,6 +13,13 @@
     "apps/*",
     "packages/*",
     "examples/*"
+  ],
+  "keywords": [
+    "pg-boss",
+    "dashboard",
+    "postgres",
+    "job-queue",
+    "background-jobs"
   ],
   "scripts": {
     "build": "turbo build",

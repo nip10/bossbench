@@ -188,6 +188,7 @@ CI runs oxlint, Biome, typechecks, unit tests, pg-boss/Postgres integration test
 - `@bossbench/nestjs`
 - `@bossbench/next`
 - `@bossbench/cli`
+- `@bossbench/mcp`
 
 ## License
 
