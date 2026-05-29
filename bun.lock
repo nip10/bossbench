@@ -235,7 +235,7 @@
     },
     "packages/adonis": {
       "name": "@bossbench/adonis",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "dependencies": {
         "@bossbench/core": "workspace:*",
       },
@@ -252,7 +252,7 @@
     },
     "packages/cli": {
       "name": "@bossbench/cli",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "bin": {
         "bossbench": "./dist/index.js",
       },
@@ -271,7 +271,7 @@
     },
     "packages/core": {
       "name": "@bossbench/core",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "dependencies": {
         "@hono/zod-validator": "^0.7.0",
         "hono": "^4.6.14",
@@ -319,7 +319,7 @@
     },
     "packages/elysia": {
       "name": "@bossbench/elysia",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "dependencies": {
         "@bossbench/core": "workspace:*",
       },
@@ -337,7 +337,7 @@
     },
     "packages/express": {
       "name": "@bossbench/express",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "dependencies": {
         "@bossbench/core": "workspace:*",
       },
@@ -356,7 +356,7 @@
     },
     "packages/fastify": {
       "name": "@bossbench/fastify",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "dependencies": {
         "@bossbench/core": "workspace:*",
       },
@@ -374,7 +374,7 @@
     },
     "packages/h3": {
       "name": "@bossbench/h3",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "dependencies": {
         "@bossbench/core": "workspace:*",
       },
@@ -392,7 +392,7 @@
     },
     "packages/hono": {
       "name": "@bossbench/hono",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "dependencies": {
         "@bossbench/core": "workspace:*",
       },
@@ -410,7 +410,7 @@
     },
     "packages/mcp": {
       "name": "@bossbench/mcp",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "bin": {
         "bossbench-mcp": "./dist/index.js",
       },
@@ -427,7 +427,7 @@
     },
     "packages/nestjs": {
       "name": "@bossbench/nestjs",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "dependencies": {
         "@bossbench/core": "workspace:*",
       },
@@ -445,8 +445,8 @@
         "vitest": "^2.1.8",
       },
       "peerDependencies": {
-        "@bossbench/express": ">=0.1.0",
-        "@bossbench/fastify": ">=0.1.0",
+        "@bossbench/express": ">=1.0.0",
+        "@bossbench/fastify": ">=1.0.0",
         "@nestjs/common": ">=10.0.0",
         "@nestjs/core": ">=10.0.0",
         "express": ">=4.0.0",
@@ -463,7 +463,7 @@
     },
     "packages/next": {
       "name": "@bossbench/next",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "dependencies": {
         "@bossbench/core": "workspace:*",
       },
@@ -480,7 +480,7 @@
     },
     "packages/nuxt": {
       "name": "@bossbench/nuxt",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "dependencies": {
         "@bossbench/h3": "workspace:*",
       },
@@ -498,7 +498,7 @@
     },
     "packages/tanstack-start": {
       "name": "@bossbench/tanstack-start",
-      "version": "0.1.0",
+      "version": "1.0.0",
       "dependencies": {
         "@bossbench/core": "workspace:*",
       },

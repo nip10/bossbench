@@ -1,6 +1,6 @@
 {
   "name": "@bossbench/mcp",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Model Context Protocol server for Bossbench.",
   "homepage": "https://github.com/nip10/bossbench/tree/main/packages/mcp#readme",
   "license": "MIT",
