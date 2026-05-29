@@ -16,7 +16,7 @@ function mockFetchJson(payload: unknown) {
       headers: { "Content-Type": "application/json" },
     }),
   );
-  vi.stubGlobal("fetch", fetchMock);
+  (globalThis as typeof globalThis & { fetch: typeof fetch }).fetch = fetchMock;
   return fetchMock;
 }
 
@@ -61,7 +61,7 @@ describe("buildJobsQuery", () => {
 
 describe("bulk job actions", () => {
   afterEach(() => {
-    vi.unstubAllGlobals();
+    // no-op
     vi.restoreAllMocks();
   });
 
@@ -116,7 +116,7 @@ describe("bulk job actions", () => {
 
 describe("future jobs", () => {
   afterEach(() => {
-    vi.unstubAllGlobals();
+    // no-op
     vi.restoreAllMocks();
   });
 
@@ -139,7 +139,7 @@ describe("future jobs", () => {
 
 describe("schedule actions", () => {
   afterEach(() => {
-    vi.unstubAllGlobals();
+    // no-op
     vi.restoreAllMocks();
   });
 
@@ -158,7 +158,7 @@ describe("schedule actions", () => {
 
 describe("enqueue and clone actions", () => {
   afterEach(() => {
-    vi.unstubAllGlobals();
+    // no-op
     vi.restoreAllMocks();
   });
 
@@ -191,9 +191,49 @@ describe("enqueue and clone actions", () => {
   });
 });
 
+describe("queue clean preview", () => {
+  afterEach(() => {
+    // no-op
+    vi.restoreAllMocks();
+  });
+
+  it("posts preview requests to the clean-preview endpoint", async () => {
+    const response = {
+      ok: true,
+      result: {
+        matchedCount: 3,
+        sampleIds: ["job-1"],
+        hasMore: false,
+        cutoff: "2026-05-25T12:00:00.000Z",
+      },
+    };
+    const fetchMock = mockFetchJson(response);
+
+    await expect(
+      api.previewQueueClean("email", {
+        state: "completed",
+        olderThanSeconds: 7200,
+        limit: 10,
+      }),
+    ).resolves.toEqual(response);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/api/queues/email/clean-preview"),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          state: "completed",
+          olderThanSeconds: 7200,
+          limit: 10,
+        }),
+      }),
+    );
+  });
+});
+
 describe("tag values", () => {
   afterEach(() => {
-    vi.unstubAllGlobals();
+    // no-op
     vi.restoreAllMocks();
   });
 

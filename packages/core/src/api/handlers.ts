@@ -3,6 +3,7 @@ import type {
   BossbenchJobState,
   BulkJobActionResult,
   QueryFilters,
+  QueueCleanPreviewRequest,
 } from "../core/types";
 
 export interface HandlerInput {
@@ -157,6 +158,21 @@ export function buildRouteTable(core: BossbenchCore): RouteDef[] {
           if (payloadBytes > 262144)
             throw errorWithCode("INVALID_FILTER", "Payload too large");
           return actions.enqueueJob(name, request.data, request.options);
+        }),
+    },
+    {
+      method: "post",
+      path: "/queues/:name/clean-preview",
+      handler: async ({ params, body }) =>
+        mutate(async () => {
+          const name = required(
+            params.name,
+            "QUEUE_NOT_FOUND",
+            "Queue not found",
+          );
+          const request = validateQueueCleanPreviewBody(body);
+          actions.ensureQueueCleanAvailable();
+          return repository.previewQueueClean(name, request);
         }),
     },
     {
@@ -528,7 +544,8 @@ function mutationStatus(code: string): number {
   if (
     code === "READONLY_MODE" ||
     code === "BOSS_INSTANCE_REQUIRED" ||
-    code === "MANUAL_ENQUEUE_DISABLED"
+    code === "MANUAL_ENQUEUE_DISABLED" ||
+    code === "QUEUE_CLEAN_DISABLED"
   )
     return 409;
   return 400;
@@ -541,6 +558,7 @@ function mutationMessage(error: unknown, code: string): string {
   if (code === "READONLY_MODE" || code === "BOSS_INSTANCE_REQUIRED")
     return errorMessage(error) ?? "Action failed";
   if (code === "MANUAL_ENQUEUE_DISABLED") return "Manual enqueue is disabled";
+  if (code === "QUEUE_CLEAN_DISABLED") return "Queue clean preview is disabled";
   return "Action failed";
 }
 
@@ -567,6 +585,46 @@ function jsonError(code: string, message: string) {
 
 function toStringOrEmpty(value: unknown): string {
   return typeof value === "string" ? value : String(value ?? "");
+}
+
+function toPositiveInteger(value: unknown) {
+  return typeof value === "number" && Number.isInteger(value) && value > 0
+    ? value
+    : undefined;
+}
+
+function validateQueueCleanPreviewBody(
+  body: unknown,
+): QueueCleanPreviewRequest {
+  if (!body || typeof body !== "object")
+    throw errorWithCode("INVALID_FILTER", "Invalid queue clean preview body");
+  const candidate = body as {
+    state?: unknown;
+    olderThanSeconds?: unknown;
+    limit?: unknown;
+  };
+  const state = toStringOrEmpty(candidate.state);
+  if (state !== "completed" && state !== "failed")
+    throw errorWithCode("INVALID_FILTER", "Invalid queue clean state");
+  const olderThanSeconds = toPositiveInteger(candidate.olderThanSeconds);
+  if (olderThanSeconds === undefined || olderThanSeconds < 3600)
+    throw errorWithCode(
+      "INVALID_FILTER",
+      "olderThanSeconds must be at least 3600",
+    );
+  const limit =
+    candidate.limit === undefined
+      ? undefined
+      : toPositiveInteger(candidate.limit);
+  if (candidate.limit !== undefined && limit === undefined)
+    throw errorWithCode("INVALID_FILTER", "limit must be a positive integer");
+  if (limit !== undefined && limit > 5000)
+    throw errorWithCode("INVALID_FILTER", "limit must be at most 5000");
+  return {
+    state: state as QueueCleanPreviewRequest["state"],
+    olderThanSeconds,
+    ...(limit !== undefined ? { limit } : {}),
+  };
 }
 
 function validateEnqueueBody(body: unknown): {

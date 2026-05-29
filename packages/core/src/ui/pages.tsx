@@ -33,6 +33,7 @@ import type {
   MetricPoint,
   MetricsResponse,
   OverviewStats,
+  QueueCleanPreviewResult,
   QueueInfo,
   QueueMetricSummary,
   ScheduleInfo,
@@ -201,6 +202,12 @@ type JobDetailTab = "summary" | "payload" | "output" | "timeline" | "raw";
 type JobFeedbackState = {
   kind: "running" | "success" | "error";
   message: string;
+} | null;
+
+type QueueCleanPreviewState = {
+  status: "running" | "success" | "error";
+  message: string;
+  result?: QueueCleanPreviewResult;
 } | null;
 
 function summarizeBulkFailures(
@@ -563,9 +570,17 @@ export function QueuePage() {
   const [payloadInput, setPayloadInput] = useState("");
   const [priorityInput, setPriorityInput] = useState("");
   const [feedback, setFeedback] = useState<JobFeedbackState>(null);
+  const [previewState, setPreviewState] =
+    useState<QueueCleanPreviewState>(null);
+  const [previewStateInput, setPreviewStateInput] = useState<
+    "completed" | "failed"
+  >("completed");
+  const [previewAgeInput, setPreviewAgeInput] = useState("3600");
+  const [previewLimitInput, setPreviewLimitInput] = useState("1000");
   const [enqueueInFlight, setEnqueueInFlight] = useState(false);
   const actionsEnabled = !!config?.hasBoss && !config.readonly;
   const manualEnqueueEnabled = actionsEnabled && !!config?.allowManualEnqueue;
+  const queueCleanPreviewEnabled = actionsEnabled && !!config?.allowQueueClean;
 
   const enqueueJob = async () => {
     if (enqueueInFlight) return;
@@ -599,6 +614,29 @@ export function QueuePage() {
       });
     } finally {
       setEnqueueInFlight(false);
+    }
+  };
+
+  const previewQueueClean = async () => {
+    if (!queueCleanPreviewEnabled) return;
+    setPreviewState({ status: "running", message: "Loading preview…" });
+    try {
+      const request = {
+        state: previewStateInput,
+        olderThanSeconds: Number(previewAgeInput),
+        ...(previewLimitInput ? { limit: Number(previewLimitInput) } : {}),
+      };
+      const response = await api.previewQueueClean(params.queueName, request);
+      setPreviewState({
+        status: "success",
+        message: "Preview loaded.",
+        result: response.result,
+      });
+    } catch (error) {
+      setPreviewState({
+        status: "error",
+        message: error instanceof Error ? error.message : "Preview failed",
+      });
     }
   };
 
@@ -673,6 +711,85 @@ export function QueuePage() {
       ) : null}
       {feedback ? (
         <div className="banner compact">{feedback.message}</div>
+      ) : null}
+      {queueCleanPreviewEnabled ? (
+        <Section
+          title="Queue clean preview"
+          subtitle="Read-only preview of jobs that would match queue clean"
+        >
+          <div className="stack" style={{ gap: 12 }}>
+            <div className="filters" style={{ alignItems: "end" }}>
+              <div
+                className="stack"
+                style={{ minWidth: 160, flex: "0 1 160px" }}
+              >
+                <span className="muted">State</span>
+                <select
+                  value={previewStateInput}
+                  onChange={(e) =>
+                    setPreviewStateInput(
+                      e.target.value as "completed" | "failed",
+                    )
+                  }
+                >
+                  <option value="completed">Completed</option>
+                  <option value="failed">Failed</option>
+                </select>
+              </div>
+              <div
+                className="stack"
+                style={{ minWidth: 180, flex: "0 1 180px" }}
+              >
+                <span className="muted">Older than seconds</span>
+                <Input
+                  type="number"
+                  value={previewAgeInput}
+                  onChange={(e) => setPreviewAgeInput(e.target.value)}
+                />
+              </div>
+              <div
+                className="stack"
+                style={{ minWidth: 180, flex: "0 1 180px" }}
+              >
+                <span className="muted">Limit</span>
+                <Input
+                  type="number"
+                  value={previewLimitInput}
+                  onChange={(e) => setPreviewLimitInput(e.target.value)}
+                />
+              </div>
+              <Button
+                type="button"
+                disabled={!queueCleanPreviewEnabled}
+                onClick={() => void previewQueueClean()}
+              >
+                Preview clean
+              </Button>
+            </div>
+            {previewState ? (
+              <div className="banner compact">{previewState.message}</div>
+            ) : null}
+            {previewState?.result ? (
+              <div className="stack" style={{ gap: 8 }}>
+                <div>
+                  Matched jobs: {previewState.result.matched.toLocaleString()}
+                </div>
+                <div>Cutoff: {previewState.result.cutoff}</div>
+                <div>
+                  Sample IDs:{" "}
+                  {previewState.result.sampleIds.length
+                    ? previewState.result.sampleIds.join(", ")
+                    : "None"}
+                </div>
+                <div>
+                  {previewState.result.hasMore
+                    ? "More jobs match beyond the sample."
+                    : "All matching jobs shown."}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </Section>
       ) : null}
       <Section title={data.name} subtitle="Recent jobs">
         {data.recentJobs.length ? (

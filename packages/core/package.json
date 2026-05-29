@@ -2,6 +2,7 @@
   "name": "@bossbench/core",
   "version": "0.1.0",
   "description": "Core API, repository, actions, and bundled UI for Bossbench.",
+  "homepage": "https://github.com/nip10/bossbench/tree/main/packages/core#readme",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -11,6 +12,13 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "keywords": [
+    "pg-boss",
+    "bossbench",
+    "postgres",
+    "dashboard",
+    "job-queue"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
