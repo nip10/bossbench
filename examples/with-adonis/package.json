@@ -1,0 +1,17 @@
+{
+  "name": "@bossbench/example-with-adonis",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server.js",
+    "typecheck": "tsc --noEmit",
+    "build": "echo 'example build placeholder'"
+  },
+  "dependencies": {
+    "@bossbench/adonis": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  }
+}

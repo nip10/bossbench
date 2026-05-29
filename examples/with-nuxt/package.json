@@ -1,0 +1,18 @@
+{
+  "name": "@bossbench/example-with-nuxt",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@bossbench/nuxt": "workspace:*",
+    "h3": "^1.15.4",
+    "pg": "^8.13.1",
+    "pg-boss": "^12.18.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  }
+}

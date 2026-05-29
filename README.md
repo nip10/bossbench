@@ -7,7 +7,7 @@ Bossbench is inspired by Workbench's embedded dashboard model, but is pg-boss-na
 ## Features
 
 - Workbench-style embedded dashboard UI.
-- Hono, h3, Express, Fastify, Elysia, NestJS, and Next.js adapters.
+- Hono, h3, Nuxt/Nitro, AdonisJS, TanStack Start, Express, Fastify, Elysia, NestJS, and Next.js adapters.
 - A standalone read-only-first app for external pg-boss/Postgres deployments.
 - Queues, jobs, schedules, warnings, dead-letter, metrics, activity, and settings screens.
 - Actions for retry, cancel, resume, delete, schedule, and unschedule when a `PgBoss` instance is provided.
@@ -21,13 +21,16 @@ Bossbench is inspired by Workbench's embedded dashboard model, but is pg-boss-na
 npx @bossbench/cli init
 ```
 
-The CLI auto-injects Hono, h3, Express, Fastify, Elysia, NestJS, and Next.js projects.
+The CLI auto-injects Hono, h3, Nuxt/Nitro, AdonisJS, TanStack Start, Express, Fastify, Elysia, NestJS, and Next.js projects.
 
 ## Examples
 
 - `examples/demo` - seeded Hono demo
 - `examples/with-hono`
 - `examples/with-h3`
+- `examples/with-nuxt`
+- `examples/with-adonis`
+- `examples/with-tanstack-start`
 - `examples/with-express`
 - `examples/with-fastify`
 - `examples/with-elysia`
@@ -176,6 +179,9 @@ CI runs oxlint, Biome, typechecks, unit tests, pg-boss/Postgres integration test
 - `@bossbench/core`
 - `@bossbench/hono`
 - `@bossbench/h3`
+- `@bossbench/nuxt`
+- `@bossbench/adonis`
+- `@bossbench/tanstack-start`
 - `@bossbench/express`
 - `@bossbench/fastify`
 - `@bossbench/elysia`

@@ -1,9 +1,12 @@
 import { readFileSync } from "node:fs";
 import type { Framework } from "../framework-detect.js";
+import { adonisInjector } from "./adonis.js";
 import { expressInjector } from "./express.js";
 import { h3Injector } from "./h3.js";
 import { honoInjector } from "./hono.js";
 import { nextInjector } from "./next.js";
+import { nuxtInjector } from "./nuxt.js";
+import { tanstackStartInjector } from "./tanstack-start.js";
 
 type Injector = (input: {
   cwd: string;
@@ -14,12 +17,16 @@ type Injector = (input: {
   ok: boolean;
   path: string | null;
   source: string;
+  files?: Array<{ path: string; source: string }>;
   reason?: string;
 }>;
 
 export const INJECTORS: Record<Framework, Injector> = {
   hono: honoInjector,
   h3: h3Injector,
+  nuxt: nuxtInjector,
+  adonis: adonisInjector,
+  "tanstack-start": tanstackStartInjector,
   express: expressInjector,
   fastify: fastifyInjector,
   elysia: elysiaInjector,

@@ -31,6 +31,13 @@ describe("detectFramework", () => {
       `import { Elysia } from "elysia";\nnew Elysia();`,
     ],
     ["next", { next: "^15" }, null],
+    ["nuxt", { nuxt: "^4" }, null],
+    ["adonis", { "@adonisjs/core": "^6" }, null],
+    [
+      "tanstack-start",
+      { "@tanstack/react-start": "^1" },
+      `import { tanstackStart } from "@tanstack/react-start/plugin/vite";\ntanstackStart();`,
+    ],
     ["h3", { h3: "^1" }, `import { createApp } from "h3";\ncreateApp();`],
     [
       "nestjs",
@@ -52,7 +59,12 @@ describe("detectFramework", () => {
     dirs.push(cwd);
     if (framework === "next")
       await mkdir(join(cwd, "app"), { recursive: true });
-    else {
+    else if (framework === "nuxt")
+      await writeFile(join(cwd, "nuxt.config.ts"), "export default {};\n");
+    else if (framework === "adonis") {
+      await mkdir(join(cwd, "start"), { recursive: true });
+      await writeFile(join(cwd, "start/routes.ts"), "export {};\n");
+    } else {
       await mkdir(join(cwd, "src"));
       if (entry) await writeFile(join(cwd, "src/index.ts"), entry);
     }

@@ -9,6 +9,9 @@ const PACKAGES = [
   "@bossbench/core",
   "@bossbench/hono",
   "@bossbench/h3",
+  "@bossbench/nuxt",
+  "@bossbench/adonis",
+  "@bossbench/tanstack-start",
   "@bossbench/express",
   "@bossbench/fastify",
   "@bossbench/elysia",
@@ -22,6 +25,9 @@ const DIST_CHECKS = [
   "packages/core/dist/index.js",
   "packages/hono/dist/index.js",
   "packages/h3/dist/index.js",
+  "packages/nuxt/dist/index.js",
+  "packages/adonis/dist/index.js",
+  "packages/tanstack-start/dist/index.js",
   "packages/express/dist/index.js",
   "packages/fastify/dist/index.js",
   "packages/elysia/dist/index.js",
@@ -69,6 +75,9 @@ async function verifyImports() {
     { BossbenchCore },
     { bossbench: honoBossbench },
     { bossbench: h3Bossbench },
+    { bossbench: nuxtBossbench },
+    { mountBossbench: adonisMountBossbench },
+    { bossbench: tanstackStartBossbench },
     { bossbench: expressBossbench },
     { bossbench: fastifyBossbench },
     { bossbench: elysiaBossbench },
@@ -79,6 +88,9 @@ async function verifyImports() {
     importPackage("packages/core/dist/index.js"),
     importPackage("packages/hono/dist/index.js"),
     importPackage("packages/h3/dist/index.js"),
+    importPackage("packages/nuxt/dist/index.js"),
+    importPackage("packages/adonis/dist/index.js"),
+    importPackage("packages/tanstack-start/dist/index.js"),
     importPackage("packages/express/dist/index.js"),
     importPackage("packages/fastify/dist/index.js"),
     importPackage("packages/elysia/dist/index.js"),
@@ -99,6 +111,12 @@ async function verifyImports() {
     throw new Error("@bossbench/hono failed to create app");
   if (!h3Bossbench(options))
     throw new Error("@bossbench/h3 failed to create handler");
+  if (!nuxtBossbench(options))
+    throw new Error("@bossbench/nuxt failed to create handler");
+  if (typeof adonisMountBossbench !== "function")
+    throw new Error("@bossbench/adonis export missing");
+  if (!tanstackStartBossbench(options).GET)
+    throw new Error("@bossbench/tanstack-start failed to create handlers");
   if (!expressBossbench(options))
     throw new Error("@bossbench/express failed to create router");
   if (!fastifyBossbench(options))

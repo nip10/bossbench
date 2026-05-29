@@ -47,6 +47,7 @@ interface InjectionResult {
   ok: boolean;
   path: string | null;
   source: string;
+  files?: Array<{ path: string; source: string }>;
   reason?: string;
 }
 
@@ -110,6 +111,10 @@ export async function init(opts: InitOptions): Promise<InitResult | undefined> {
       mkdirSync(dirname(injection.path), { recursive: true });
       writeFileSync(injection.path, injection.source);
     }
+    for (const file of injection.files ?? []) {
+      mkdirSync(dirname(file.path), { recursive: true });
+      writeFileSync(file.path, file.source);
+    }
     if (writeDocker && !existsSync(join(cwd, "docker-compose.yml"))) {
       writeFileSync(join(cwd, "docker-compose.yml"), dockerCompose());
     }
@@ -126,7 +131,7 @@ export async function init(opts: InitOptions): Promise<InitResult | undefined> {
       `Entry: ${detected.entry ? relative(cwd, detected.entry) : "n/a"}`,
       `Install: ${install}`,
       injection.ok
-        ? `Updated: ${injection.path ? relative(cwd, injection.path) : "n/a"}`
+        ? `Updated: ${updatedFiles(cwd, injection)}`
         : `Manual step: ${injection.reason}`,
       `Auth env: ${enableAuth ? "BOSSBENCH_USER/BOSSBENCH_PASS" : "disabled"}`,
     ].join("\n"),
@@ -141,6 +146,18 @@ export async function init(opts: InitOptions): Promise<InitResult | undefined> {
     install,
     envPath,
   };
+}
+
+function updatedFiles(cwd: string, injection: InjectionResult) {
+  const files = Array.from(
+    new Set([
+      ...(injection.path ? [injection.path] : []),
+      ...(injection.files ?? []).map((file) => file.path),
+    ]),
+  );
+  return files.length
+    ? files.map((file) => relative(cwd, file)).join(", ")
+    : "n/a";
 }
 
 function buildEnvExample(existing: string | undefined, withAuth: boolean) {
@@ -169,6 +186,9 @@ function adapterPackageIsAvailable(framework: string) {
   return [
     "hono",
     "h3",
+    "nuxt",
+    "adonis",
+    "tanstack-start",
     "express",
     "fastify",
     "elysia",
