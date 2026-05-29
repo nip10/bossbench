@@ -2,11 +2,14 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { adonisInjector } from "./lib/inject/adonis.js";
 import { expressInjector } from "./lib/inject/express.js";
 import { h3Injector } from "./lib/inject/h3.js";
 import { honoInjector } from "./lib/inject/hono.js";
 import { INJECTORS } from "./lib/inject/index.js";
 import { nextInjector } from "./lib/inject/next.js";
+import { nuxtInjector } from "./lib/inject/nuxt.js";
+import { tanstackStartInjector } from "./lib/inject/tanstack-start.js";
 import { detectPackageManager } from "./lib/package-manager.js";
 
 const dirs: string[] = [];
@@ -165,6 +168,101 @@ describe("injectors", () => {
     expect(result.ok).toBe(true);
     expect(result.source).toContain("BOSSBENCH_USER");
     expect(result.source).not.toContain("allowUnauthenticated: true");
+  });
+
+  it("scaffolds Nuxt route files", async () => {
+    const cwd = await mkdtemp(join(tmpdir(), "bossbench-nuxt-"));
+    dirs.push(cwd);
+    const result = await nuxtInjector({
+      cwd,
+      entry: null,
+      mountPath: "/jobs",
+      withAuth: true,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.files?.map((file) => file.path)).toEqual([
+      join(cwd, "server/utils/bossbench.ts"),
+      join(cwd, "server/routes/jobs.ts"),
+      join(cwd, "server/routes/jobs/[...].ts"),
+    ]);
+    expect(result.files?.[0]?.source).toContain("@bossbench/nuxt");
+    expect(result.files?.[0]?.source).toContain("BOSSBENCH_USER");
+  });
+
+  it("injects Adonis route mount", async () => {
+    const cwd = await mkdtemp(join(tmpdir(), "bossbench-adonis-"));
+    dirs.push(cwd);
+    await mkdir(join(cwd, "start"), { recursive: true });
+    const entry = join(cwd, "start/routes.ts");
+    await writeFile(
+      entry,
+      `import router from "@adonisjs/core/services/router";\n`,
+    );
+    const result = await adonisInjector({
+      cwd,
+      entry,
+      mountPath: "/jobs",
+      withAuth: false,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.source).toContain('mountBossbench(router, "/jobs"');
+    expect(result.source).toContain("@bossbench/adonis");
+    expect(result.source).toContain("allowUnauthenticated: true");
+  });
+
+  it("scaffolds TanStack Start route files", async () => {
+    const cwd = await mkdtemp(join(tmpdir(), "bossbench-tanstack-"));
+    dirs.push(cwd);
+    const result = await tanstackStartInjector({
+      cwd,
+      entry: null,
+      mountPath: "/jobs",
+      withAuth: false,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.files?.map((file) => file.path)).toEqual([
+      join(cwd, "src/lib/bossbench-handlers.ts"),
+      join(cwd, "src/routes/jobs.ts"),
+      join(cwd, "src/routes/jobs/$.ts"),
+    ]);
+    expect(result.files?.[0]?.source).toContain("@bossbench/tanstack-start");
+    expect(result.files?.[0]?.source).toContain("allowUnauthenticated: true");
+  });
+
+  it("scaffolds nested Nuxt route imports", async () => {
+    const cwd = await mkdtemp(join(tmpdir(), "bossbench-nuxt-nested-"));
+    dirs.push(cwd);
+    const result = await nuxtInjector({
+      cwd,
+      entry: null,
+      mountPath: "/admin/jobs",
+      withAuth: false,
+    });
+
+    expect(result.files?.[1]?.source).toContain("../../utils/bossbench");
+    expect(result.files?.[2]?.source).toContain("../../../utils/bossbench");
+  });
+
+  it("scaffolds nested TanStack Start route imports", async () => {
+    const cwd = await mkdtemp(join(tmpdir(), "bossbench-tanstack-nested-"));
+    dirs.push(cwd);
+    const result = await tanstackStartInjector({
+      cwd,
+      entry: null,
+      mountPath: "/admin/jobs",
+      withAuth: false,
+    });
+
+    expect(result.files?.[1]?.source).toContain("../../lib/bossbench-handlers");
+    expect(result.files?.[2]?.source).toContain(
+      "../../../lib/bossbench-handlers",
+    );
+    expect(result.files?.[1]?.source).toContain(
+      'createFileRoute("/admin/jobs" as never)',
+    );
   });
 });
 

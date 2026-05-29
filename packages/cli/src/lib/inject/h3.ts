@@ -11,6 +11,7 @@ export interface InjectorOutput {
   ok: boolean;
   path: string | null;
   source: string;
+  files?: Array<{ path: string; source: string }>;
   reason?: string;
 }
 

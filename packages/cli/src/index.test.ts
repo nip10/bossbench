@@ -114,6 +114,68 @@ describe("init", () => {
     expect(result?.install).toContain("npm add @bossbench/h3 pg pg-boss");
   });
 
+  it("prints install commands for Nuxt projects", async () => {
+    const cwd = await fixture({ dependencies: { nuxt: "^4.0.0" }, entry: "" });
+    await writeFile(join(cwd, "nuxt.config.ts"), "export default {};\n");
+
+    const result = await init({
+      cwd,
+      mount: "/jobs",
+      auth: true,
+      docker: false,
+      yes: true,
+      dryRun: true,
+    });
+
+    expect(result?.framework).toBe("nuxt");
+    expect(result?.install).toContain("npm add @bossbench/nuxt pg pg-boss");
+  });
+
+  it("prints install commands for AdonisJS projects", async () => {
+    const cwd = await fixture({
+      dependencies: { "@adonisjs/core": "^6.0.0" },
+      entry: "",
+    });
+    await mkdir(join(cwd, "start"), { recursive: true });
+    await writeFile(
+      join(cwd, "start/routes.ts"),
+      `import router from "@adonisjs/core/services/router";\n`,
+    );
+
+    const result = await init({
+      cwd,
+      mount: "/jobs",
+      auth: false,
+      docker: false,
+      yes: true,
+      dryRun: true,
+    });
+
+    expect(result?.framework).toBe("adonis");
+    expect(result?.install).toContain("npm add @bossbench/adonis pg pg-boss");
+  });
+
+  it("prints install commands for TanStack Start projects", async () => {
+    const cwd = await fixture({
+      dependencies: { "@tanstack/react-start": "^1.0.0" },
+      entry: `import { tanstackStart } from "@tanstack/react-start/plugin/vite";\ntanstackStart();\n`,
+    });
+
+    const result = await init({
+      cwd,
+      mount: "/jobs",
+      auth: false,
+      docker: false,
+      yes: true,
+      dryRun: true,
+    });
+
+    expect(result?.framework).toBe("tanstack-start");
+    expect(result?.install).toContain(
+      "npm add @bossbench/tanstack-start pg pg-boss",
+    );
+  });
+
   it("includes a default Nest platform adapter in install guidance", async () => {
     const cwd = await fixture({
       dependencies: { "@nestjs/core": "^10.0.0" },

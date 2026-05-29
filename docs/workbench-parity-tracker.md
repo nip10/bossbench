@@ -120,13 +120,13 @@ When auditing upstream again, compare from the `Last upstream audit` commit abov
 | Elysia adapter | Implemented | `@bossbench/elysia`. | — |
 | NestJS adapter | Implemented | `@bossbench/nestjs`. | — |
 | Next.js adapter | Implemented | `@bossbench/next`. | — |
-| AdonisJS adapter | Deferred | Workbench ships `@getworkbench/adonis`; Bossbench has no `@bossbench/adonis` package or example. Defer unless user demand appears. | [#63](https://github.com/nip10/bossbench/issues/63) |
-| TanStack Start adapter | Deferred | Workbench ships `@getworkbench/tanstack-start`; Bossbench has no equivalent package or example. Defer unless user demand appears. | [#64](https://github.com/nip10/bossbench/issues/64) |
+| AdonisJS adapter | Implemented | `@bossbench/adonis` provides `mountBossbench(router, mountPath, options)` plus CLI scaffold and example. | [#63](https://github.com/nip10/bossbench/issues/63) |
+| TanStack Start adapter | Implemented | `@bossbench/tanstack-start` provides server-route handlers plus CLI scaffold and example. | [#64](https://github.com/nip10/bossbench/issues/64) |
 | Astro adapter | Deferred | Workbench ships `@getworkbench/astro`; Bossbench should defer Astro unless user demand appears because it is less natural for an operational dashboard. | — |
 | Bun adapter | Deferred | Workbench ships `@getworkbench/bun`; Bossbench should prefer examples first because Hono/Elysia already cover many Bun deployments. | — |
 | h3 adapter | Implemented | Added first-party `@bossbench/h3` adapter and CLI detection/injection support. | [#61](https://github.com/nip10/bossbench/issues/61) |
 | Koa adapter | Deferred | Workbench ships `@getworkbench/koa`; Bossbench should defer Koa unless requested. | — |
-| Nuxt adapter | Planned | Nuxt should follow h3 as a thin wrapper or documented Nitro/h3 integration if demand exists. | [#62](https://github.com/nip10/bossbench/issues/62) |
+| Nuxt adapter | Implemented | `@bossbench/nuxt` wraps the h3 adapter for Nitro route files and ships CLI scaffold/example coverage. | [#62](https://github.com/nip10/bossbench/issues/62) |
 | MCP server | Implemented | Bossbench ships `@bossbench/mcp`, a read-only stdio MCP server that proxies existing dashboard APIs. | — |
 | CLI initializer | Adapted | Bossbench CLI detects supported frameworks and injects pg-boss/Postgres setup. Docs can be clearer. | [#13](https://github.com/nip10/bossbench/issues/13) |
 | Framework examples | Implemented | Bossbench has `with-*` examples plus a seeded demo. | — |
@@ -141,11 +141,10 @@ When auditing upstream again, compare from the `Last upstream audit` commit abov
 
 ## Remaining priority order
 
-1. Decide adapter expansion priority: h3/Nuxt first as previously recommended, or add AdonisJS/TanStack Start only if user demand appears.
-2. Resolve the queue-clean blocker: direct SQL policy, queue table resolution, and whether an audit log is required.
-3. Deepen pg-boss job detail further: retry/error history and safe queue maintenance semantics.
-4. Continue dashboard command-center polish: richer attention alerts, live cues, and optional collapsible sidebar behavior.
-5. Continue desktop parity through [#14](https://github.com/nip10/bossbench/issues/14) and child issues [#29–#34](https://github.com/nip10/bossbench/issues?q=is%3Aissue%20state%3Aopen%20label%3Adesktop).
+1. Resolve the queue-clean blocker: direct SQL policy, queue table resolution, and whether an audit log is required.
+2. Deepen pg-boss job detail further: retry/error history and safe queue maintenance semantics.
+3. Continue dashboard command-center polish: richer attention alerts, live cues, and optional collapsible sidebar behavior.
+4. Continue desktop parity through [#14](https://github.com/nip10/bossbench/issues/14) and child issues [#29–#34](https://github.com/nip10/bossbench/issues?q=is%3Aissue%20state%3Aopen%20label%3Adesktop).
 
 ## Maintenance rule
 
