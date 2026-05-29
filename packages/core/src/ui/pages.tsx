@@ -53,6 +53,7 @@ import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { api } from "./lib/api";
 import { buildOverviewAttentionSignals } from "./lib/dashboard-polish";
+import { parseEnqueuePayloadInput } from "./lib/enqueue";
 import {
   futureJobsDefaultSort,
   futureJobsEmptyDescription,
@@ -241,6 +242,21 @@ async function invalidateJobActionQueries(
     queryClient.invalidateQueries({ queryKey: queryPrefixes.queue }),
     queryClient.invalidateQueries({ queryKey: queryKeys.overview }),
     queryClient.invalidateQueries({ queryKey: queryKeys.deadLetter }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.metrics }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.activity }),
+  ]);
+}
+
+async function invalidateQueueActionQueries(
+  queryClient: QueryClient,
+  queueName: string,
+) {
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: queryKeys.queue(queueName) }),
+    queryClient.invalidateQueries({ queryKey: queryPrefixes.queue }),
+    queryClient.invalidateQueries({ queryKey: queryPrefixes.jobs }),
+    queryClient.invalidateQueries({ queryKey: queryPrefixes.queues }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.overview }),
     queryClient.invalidateQueries({ queryKey: queryKeys.metrics }),
     queryClient.invalidateQueries({ queryKey: queryKeys.activity }),
   ]);
@@ -541,7 +557,51 @@ export function QueuesPage() {
 
 export function QueuePage() {
   const params = useParams({ strict: false }) as { queueName: string };
+  const queryClient = useQueryClient();
+  const { data: config } = useConfig();
   const { data, isLoading, error } = useQueue(params.queueName);
+  const [payloadInput, setPayloadInput] = useState("");
+  const [priorityInput, setPriorityInput] = useState("");
+  const [feedback, setFeedback] = useState<JobFeedbackState>(null);
+  const [enqueueInFlight, setEnqueueInFlight] = useState(false);
+  const actionsEnabled = !!config?.hasBoss && !config.readonly;
+  const manualEnqueueEnabled = actionsEnabled && !!config?.allowManualEnqueue;
+
+  const enqueueJob = async () => {
+    if (enqueueInFlight) return;
+    setEnqueueInFlight(true);
+    setFeedback({ kind: "running", message: "Enqueue job…" });
+
+    try {
+      const request = parseEnqueuePayloadInput(payloadInput, priorityInput);
+      const response = await api.enqueueJob(params.queueName, request);
+      const jobId =
+        response &&
+        typeof response === "object" &&
+        "result" in response &&
+        response.result &&
+        typeof response.result === "object" &&
+        "id" in response.result
+          ? String((response.result as { id?: unknown }).id ?? "")
+          : "";
+
+      await invalidateQueueActionQueries(queryClient, params.queueName);
+      setPayloadInput("");
+      setPriorityInput("");
+      setFeedback({
+        kind: "success",
+        message: jobId ? `Enqueued job ${jobId}.` : "Job enqueued.",
+      });
+    } catch (error) {
+      setFeedback({
+        kind: "error",
+        message: error instanceof Error ? error.message : "Enqueue failed",
+      });
+    } finally {
+      setEnqueueInFlight(false);
+    }
+  };
+
   if (isLoading && !data)
     return <EmptyState icon={LoaderCircle} title="Loading queue…" />;
   if (error || !data)
@@ -569,6 +629,51 @@ export function QueuePage() {
           subtitle="Finished"
         />
       </div>
+      {manualEnqueueEnabled ? (
+        <Section
+          title="Manual enqueue"
+          subtitle="Writes a live job into this queue"
+        >
+          <div className="stack" style={{ gap: 12 }}>
+            <div className="banner compact" role="note">
+              Production write: this inserts a job through pg-boss.
+            </div>
+            <textarea
+              className="input"
+              value={payloadInput}
+              onChange={(event) => setPayloadInput(event.target.value)}
+              placeholder='Optional JSON payload (for example: {"foo":"bar"})'
+              aria-label="Manual enqueue JSON payload"
+              style={{ minHeight: 92, height: "auto", resize: "vertical" }}
+            />
+            <div className="filters" style={{ alignItems: "end" }}>
+              <div
+                className="stack"
+                style={{ minWidth: 180, flex: "0 1 180px" }}
+              >
+                <span className="muted">Priority</span>
+                <Input
+                  type="number"
+                  value={priorityInput}
+                  onChange={(event) => setPriorityInput(event.target.value)}
+                  placeholder="Optional"
+                  aria-label="Manual enqueue priority"
+                />
+              </div>
+              <Button
+                type="button"
+                disabled={!manualEnqueueEnabled || enqueueInFlight}
+                onClick={() => void enqueueJob()}
+              >
+                Enqueue job
+              </Button>
+            </div>
+          </div>
+        </Section>
+      ) : null}
+      {feedback ? (
+        <div className="banner compact">{feedback.message}</div>
+      ) : null}
       <Section title={data.name} subtitle="Recent jobs">
         {data.recentJobs.length ? (
           <Table
@@ -1447,6 +1552,7 @@ export function JobPage() {
     );
   const job = data as JobDetail;
   const actionsEnabled = !!config?.hasBoss && !config.readonly;
+  const manualEnqueueEnabled = actionsEnabled && !!config?.allowManualEnqueue;
 
   const copyText = async (label: string, text: string) => {
     try {
@@ -1472,15 +1578,25 @@ export function JobPage() {
     setFeedback({ kind: "success", message: "Job export downloaded." });
   };
 
-  const runAction = async (label: string, action: () => Promise<unknown>) => {
+  const runAction = async (
+    label: string,
+    action: () => Promise<unknown>,
+    successMessage?: string | ((result: unknown) => string),
+  ) => {
     if (actionInFlightRef.current) return;
     actionInFlightRef.current = true;
     setActionInFlight(true);
     setFeedback({ kind: "running", message: `${label}…` });
     try {
-      await action();
+      const result = await action();
       await invalidateJobActionQueries(queryClient, job.id);
-      setFeedback({ kind: "success", message: `${label} complete.` });
+      setFeedback({
+        kind: "success",
+        message:
+          typeof successMessage === "function"
+            ? successMessage(result)
+            : (successMessage ?? `${label} complete.`),
+      });
     } catch (error) {
       setFeedback({
         kind: "error",
@@ -1607,6 +1723,35 @@ export function JobPage() {
           >
             Retry
           </Button>
+          {manualEnqueueEnabled ? (
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={!actionsEnabled || actionInFlight}
+              onClick={() =>
+                void runAction(
+                  "Enqueue copy",
+                  () => api.cloneJob(job.id),
+                  (result) => {
+                    const jobId =
+                      result &&
+                      typeof result === "object" &&
+                      "result" in result &&
+                      result.result &&
+                      typeof result.result === "object" &&
+                      "id" in result.result
+                        ? String((result.result as { id?: unknown }).id ?? "")
+                        : "";
+                    return jobId
+                      ? `Enqueue copy created job ${jobId}.`
+                      : "Enqueue copy complete.";
+                  },
+                )
+              }
+            >
+              Enqueue copy
+            </Button>
+          ) : null}
           <Button
             type="button"
             variant="ghost"

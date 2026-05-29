@@ -141,6 +141,25 @@ export function buildRouteTable(core: BossbenchCore): RouteDef[] {
         ),
     },
     {
+      method: "post",
+      path: "/queues/:name/enqueue",
+      handler: async ({ params, body }) =>
+        mutate(async () => {
+          const name = required(
+            params.name,
+            "QUEUE_NOT_FOUND",
+            "Queue not found",
+          );
+          const request = validateEnqueueBody(body);
+          const payloadBytes = new TextEncoder().encode(
+            JSON.stringify(request.data ?? null),
+          ).length;
+          if (payloadBytes > 262144)
+            throw errorWithCode("INVALID_FILTER", "Payload too large");
+          return actions.enqueueJob(name, request.data, request.options);
+        }),
+    },
+    {
       method: "get",
       path: "/jobs/:id",
       handler: async ({ params }) => {
@@ -151,6 +170,30 @@ export function buildRouteTable(core: BossbenchCore): RouteDef[] {
           "Job not found",
         );
       },
+    },
+    {
+      method: "post",
+      path: "/jobs/:id/clone",
+      handler: async ({ params }) =>
+        mutate(async () => {
+          const id = required(params.id, "JOB_NOT_FOUND", "Job not found");
+          const job = await repository.getJob(id);
+          if (!job) throw errorWithCode("JOB_NOT_FOUND", "Job not found");
+          const opts =
+            job.priority === undefined || job.priority === null
+              ? undefined
+              : { priority: job.priority };
+          const queue = job.queue ?? job.name;
+          const result = (await actions.enqueueJob(queue, job.data, opts)) as {
+            id?: string | null;
+            enqueued?: boolean;
+          };
+          return {
+            ...result,
+            sourceJobId: job.id,
+            queue,
+          };
+        }),
     },
     {
       method: "post",
@@ -482,7 +525,12 @@ async function mutate(fn: () => Promise<unknown>): Promise<HandlerResult> {
 
 function mutationStatus(code: string): number {
   if (code === "JOB_NOT_FOUND" || code === "SCHEDULE_NOT_FOUND") return 404;
-  if (code === "READONLY_MODE" || code === "BOSS_INSTANCE_REQUIRED") return 409;
+  if (
+    code === "READONLY_MODE" ||
+    code === "BOSS_INSTANCE_REQUIRED" ||
+    code === "MANUAL_ENQUEUE_DISABLED"
+  )
+    return 409;
   return 400;
 }
 
@@ -492,6 +540,7 @@ function mutationMessage(error: unknown, code: string): string {
   if (code === "INVALID_FILTER") return errorMessage(error) ?? "Invalid filter";
   if (code === "READONLY_MODE" || code === "BOSS_INSTANCE_REQUIRED")
     return errorMessage(error) ?? "Action failed";
+  if (code === "MANUAL_ENQUEUE_DISABLED") return "Manual enqueue is disabled";
   return "Action failed";
 }
 
@@ -518,4 +567,58 @@ function jsonError(code: string, message: string) {
 
 function toStringOrEmpty(value: unknown): string {
   return typeof value === "string" ? value : String(value ?? "");
+}
+
+function validateEnqueueBody(body: unknown): {
+  data: Record<string, unknown> | null;
+  options?: { priority?: number; startAfter?: string | number };
+} {
+  if (body === undefined || body === null) return { data: {} };
+  if (typeof body !== "object")
+    throw errorWithCode("INVALID_FILTER", "Invalid enqueue body");
+  const candidate = body as {
+    data?: unknown;
+    priority?: unknown;
+    startAfter?: unknown;
+    options?: { priority?: unknown; startAfter?: unknown };
+  };
+  const data = candidate.data ?? {};
+  if (
+    data !== null &&
+    (!data || Array.isArray(data) || typeof data !== "object")
+  )
+    throw errorWithCode("INVALID_FILTER", "Invalid enqueue body");
+
+  const rawOptions = candidate.options ?? {
+    priority: candidate.priority,
+    startAfter: candidate.startAfter,
+  };
+  const options: { priority?: number; startAfter?: string | number } = {};
+
+  if (
+    rawOptions.priority !== undefined &&
+    !Number.isInteger(rawOptions.priority)
+  )
+    throw errorWithCode("INVALID_FILTER", "Invalid enqueue body");
+  if (typeof rawOptions.priority === "number")
+    options.priority = rawOptions.priority;
+  if (rawOptions.startAfter !== undefined) {
+    options.startAfter = normalizeStartAfter(rawOptions.startAfter);
+  }
+
+  return {
+    data: data as Record<string, unknown> | null,
+    ...(Object.keys(options).length ? { options } : {}),
+  };
+}
+
+function normalizeStartAfter(value: unknown): string | number {
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+    return value;
+  }
+  if (typeof value === "string" && value.endsWith("Z")) {
+    const timestamp = Date.parse(value);
+    if (Number.isFinite(timestamp)) return new Date(timestamp).toISOString();
+  }
+  throw errorWithCode("INVALID_FILTER", "Invalid enqueue body");
 }

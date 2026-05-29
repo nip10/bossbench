@@ -316,6 +316,188 @@ describe("route table /jobs parsing", () => {
     });
   });
 
+  it("enqueues a job when manual enqueue is enabled", async () => {
+    const enqueueJob = vi
+      .fn()
+      .mockResolvedValue({ id: "job-1", enqueued: true });
+    const route = buildRouteTable(
+      fakeCore(vi.fn(), {}, { enqueueJob }) as never,
+    ).find(
+      (candidate) =>
+        candidate.method === "post" &&
+        candidate.path === "/queues/:name/enqueue",
+    );
+
+    expect(route).toBeDefined();
+    assertRoute(route);
+
+    const body = {
+      data: { foo: "bar" },
+      options: { priority: 5, startAfter: 10 },
+    };
+    const result = await route.handler({
+      params: { name: "email" },
+      query: {},
+      body,
+    });
+
+    expect(result).toEqual({
+      status: 200,
+      body: { ok: true, result: { id: "job-1", enqueued: true } },
+    });
+    expect(enqueueJob).toHaveBeenCalledWith(
+      "email",
+      { foo: "bar" },
+      { priority: 5, startAfter: 10 },
+    );
+  });
+
+  it("rejects array enqueue payloads", async () => {
+    const enqueueJob = vi.fn();
+    const route = buildRouteTable(
+      fakeCore(vi.fn(), {}, { enqueueJob }) as never,
+    ).find(
+      (candidate) =>
+        candidate.method === "post" &&
+        candidate.path === "/queues/:name/enqueue",
+    );
+
+    expect(route).toBeDefined();
+    assertRoute(route);
+
+    await expect(
+      route.handler({
+        params: { name: "email" },
+        query: {},
+        body: { data: [] },
+      }),
+    ).resolves.toMatchObject({
+      status: 400,
+      body: { error: { code: "INVALID_FILTER" } },
+    });
+    expect(enqueueJob).not.toHaveBeenCalled();
+  });
+
+  it("defaults empty enqueue bodies to an empty payload", async () => {
+    const enqueueJob = vi
+      .fn()
+      .mockResolvedValue({ id: "job-empty", enqueued: true });
+    const route = buildRouteTable(
+      fakeCore(vi.fn(), {}, { enqueueJob }) as never,
+    ).find(
+      (candidate) =>
+        candidate.method === "post" &&
+        candidate.path === "/queues/:name/enqueue",
+    );
+
+    expect(route).toBeDefined();
+    assertRoute(route);
+
+    const result = await route.handler({
+      params: { name: "email" },
+      query: {},
+      body: undefined,
+    });
+
+    expect(result.status).toBe(200);
+    expect(enqueueJob).toHaveBeenCalledWith("email", {}, undefined);
+  });
+
+  it("normalizes ISO enqueue startAfter strings and rejects ambiguous dates", async () => {
+    const enqueueJob = vi
+      .fn()
+      .mockResolvedValue({ id: "job-iso", enqueued: true });
+    const route = buildRouteTable(
+      fakeCore(vi.fn(), {}, { enqueueJob }) as never,
+    ).find(
+      (candidate) =>
+        candidate.method === "post" &&
+        candidate.path === "/queues/:name/enqueue",
+    );
+
+    expect(route).toBeDefined();
+    assertRoute(route);
+
+    await expect(
+      route.handler({
+        params: { name: "email" },
+        query: {},
+        body: { data: {}, options: { startAfter: "2026-05-28T10:00:00.000Z" } },
+      }),
+    ).resolves.toMatchObject({ status: 200 });
+    expect(enqueueJob).toHaveBeenCalledWith(
+      "email",
+      {},
+      {
+        startAfter: "2026-05-28T10:00:00.000Z",
+      },
+    );
+
+    await expect(
+      route.handler({
+        params: { name: "email" },
+        query: {},
+        body: { data: {}, options: { startAfter: "2026-05-28T10:00:00" } },
+      }),
+    ).resolves.toMatchObject({
+      status: 400,
+      body: { error: { code: "INVALID_FILTER" } },
+    });
+  });
+
+  it("clones a job by enqueuing its queue, data, and priority", async () => {
+    const getJob = vi.fn().mockResolvedValue({
+      id: "job-1",
+      name: "email",
+      queue: "email",
+      data: { foo: 1 },
+      priority: 9,
+    });
+    const enqueueJob = vi.fn().mockResolvedValue({ id: "job-2" });
+    const route = buildRouteTable(
+      fakeCore(vi.fn(), { getJob }, { enqueueJob }) as never,
+    ).find(
+      (candidate) =>
+        candidate.method === "post" && candidate.path === "/jobs/:id/clone",
+    );
+    expect(route).toBeDefined();
+    assertRoute(route);
+    const result = await route.handler({
+      params: { id: "job-1" },
+      query: {},
+      body: undefined,
+    });
+    expect(result.status).toBe(200);
+    expect(result.body).toEqual({
+      ok: true,
+      result: { id: "job-2", sourceJobId: "job-1", queue: "email" },
+    });
+    expect(enqueueJob).toHaveBeenCalledWith(
+      "email",
+      { foo: 1 },
+      { priority: 9 },
+    );
+  });
+
+  it("returns JOB_NOT_FOUND when cloning a missing job", async () => {
+    const getJob = vi.fn().mockResolvedValue(null);
+    const enqueueJob = vi.fn();
+    const route = buildRouteTable(
+      fakeCore(vi.fn(), { getJob }, { enqueueJob }) as never,
+    ).find(
+      (candidate) =>
+        candidate.method === "post" && candidate.path === "/jobs/:id/clone",
+    );
+    expect(route).toBeDefined();
+    assertRoute(route);
+    await expect(
+      route.handler({ params: { id: "missing" }, query: {} }),
+    ).resolves.toMatchObject({
+      status: 404,
+      body: { error: { code: "JOB_NOT_FOUND" } },
+    });
+  });
+
   it.each([
     ["READONLY_MODE", "Readonly mode"],
     ["BOSS_INSTANCE_REQUIRED", "Boss instance required"],

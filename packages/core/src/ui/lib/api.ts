@@ -2,6 +2,9 @@ import type {
   ActivityPoint,
   BossbenchJobState,
   BulkJobActionResult,
+  CloneJobResult,
+  EnqueueJobRequest,
+  EnqueueJobResult,
   JobSummary,
   MetricsResponse,
   OverviewStats,
@@ -43,6 +46,8 @@ export const api = {
       basePath?: string;
       readonly?: boolean;
       hasBoss?: boolean;
+      allowManualEnqueue?: boolean;
+      allowQueueClean?: boolean;
       tags?: string[];
     }>("/config"),
   overview: () => fetchJson<OverviewStats>("/overview"),
@@ -100,6 +105,21 @@ export const api = {
   warnings: () => fetchJson<{ items: WarningInfo[] }>("/warnings"),
   metrics: () => fetchJson<MetricsResponse>("/metrics"),
   activity: () => fetchJson<{ items: ActivityPoint[] }>("/activity"),
+  enqueueJob: (queue: string, request: EnqueueJobRequest) =>
+    fetchJson<MutationResponse<EnqueueJobResult>>(
+      `/queues/${encodeURIComponent(queue)}/enqueue`,
+      {
+        method: "POST",
+        body: JSON.stringify(request),
+      },
+    ),
+  cloneJob: (id: string) =>
+    fetchJson<MutationResponse<CloneJobResult>>(
+      `/jobs/${encodeURIComponent(id)}/clone`,
+      {
+        method: "POST",
+      },
+    ),
   tagValues: (field: string, limit?: number) => {
     const params = new URLSearchParams();
     if (limit !== undefined) params.set("limit", String(limit));

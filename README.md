@@ -142,6 +142,8 @@ export default app;
 | `auth` | Basic auth credentials. Required unless `allowUnauthenticated: true`. |
 | `allowUnauthenticated` | Explicitly allow unprotected browsing. Defaults to `false`. |
 | `readonly` | Disable all mutations. Defaults to `true` without auth, `false` with auth. |
+| `allowManualEnqueue` | Enable manual enqueue and enqueue-copy actions. Defaults to `false`. |
+| `allowQueueClean` | Enable queue clean capabilities when the safety design lands. Defaults to `false`. |
 | `tags` | Fields from `job.data` that can be used as filters. |
 
 ## Development

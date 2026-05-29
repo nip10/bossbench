@@ -11,5 +11,6 @@ describe("BossbenchCore", () => {
     expect(core.requiresAuth()).toBe(true);
     expect(core.validateAuth("u", "p")).toBe(true);
     expect(core.actionsEnabled()).toBe(false);
+    expect(core.getConfig().allowManualEnqueue).toBe(false);
   });
 });

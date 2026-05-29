@@ -1,9 +1,15 @@
 import type { PgBoss } from "pg-boss";
 
+type ActionCapabilities = {
+  allowManualEnqueue?: boolean;
+  allowQueueClean?: boolean;
+};
+
 export class PgBossActionService {
   constructor(
     private readonly boss: PgBoss | undefined,
     private readonly readonlyMode = false,
+    private readonly capabilities: ActionCapabilities = {},
   ) {}
   private ensure() {
     if (this.readonlyMode)
@@ -37,6 +43,22 @@ export class PgBossActionService {
       opts as never,
     );
     return { id };
+  }
+  async enqueueJob(name: string, data?: unknown, opts?: unknown) {
+    if (!this.capabilities.allowManualEnqueue)
+      throw actionError(
+        "MANUAL_ENQUEUE_DISABLED",
+        "Manual enqueue is disabled",
+      );
+    const boss = this.ensure();
+    const queue = await boss.getQueue(name);
+    if (!queue) throw actionError("QUEUE_NOT_FOUND", "Queue not found");
+    const id = await boss.send(
+      name,
+      data as object | null | undefined,
+      opts as never,
+    );
+    return { id, enqueued: id !== null };
   }
   async createSchedule(name: string, cron: string, data?: unknown) {
     return this.ensure().schedule(

@@ -45,4 +45,64 @@ describe("actions", () => {
     });
     expect(boss.send).toHaveBeenCalledWith("billing", data, opts);
   });
+
+  it("blocks manual enqueue unless enabled", async () => {
+    const boss = { send: vi.fn() };
+    const s = new PgBossActionService(boss as unknown as PgBoss, false);
+
+    await expect(
+      s.enqueueJob("email", { hello: true }, {}),
+    ).rejects.toMatchObject({ code: "MANUAL_ENQUEUE_DISABLED" });
+    expect(boss.send).not.toHaveBeenCalled();
+  });
+
+  it("enqueues manual jobs through pg-boss send when enabled", async () => {
+    const boss = {
+      getQueue: vi.fn().mockResolvedValue({ name: "email" }),
+      send: vi.fn().mockResolvedValue("job-2"),
+    };
+    const s = new PgBossActionService(boss as unknown as PgBoss, false, {
+      allowManualEnqueue: true,
+    });
+
+    await expect(
+      s.enqueueJob("email", { hello: true }, { priority: 1 }),
+    ).resolves.toEqual({ id: "job-2", enqueued: true });
+    expect(boss.getQueue).toHaveBeenCalledWith("email");
+    expect(boss.send).toHaveBeenCalledWith(
+      "email",
+      { hello: true },
+      { priority: 1 },
+    );
+  });
+
+  it("reports when pg-boss declines to insert a manual job", async () => {
+    const boss = {
+      getQueue: vi.fn().mockResolvedValue({ name: "email" }),
+      send: vi.fn().mockResolvedValue(null),
+    };
+    const s = new PgBossActionService(boss as unknown as PgBoss, false, {
+      allowManualEnqueue: true,
+    });
+
+    await expect(s.enqueueJob("email", {}, {})).resolves.toEqual({
+      id: null,
+      enqueued: false,
+    });
+  });
+
+  it("requires the pg-boss queue to exist before manual enqueue", async () => {
+    const boss = {
+      getQueue: vi.fn().mockResolvedValue(null),
+      send: vi.fn(),
+    };
+    const s = new PgBossActionService(boss as unknown as PgBoss, false, {
+      allowManualEnqueue: true,
+    });
+
+    await expect(s.enqueueJob("empty", {}, {})).rejects.toMatchObject({
+      code: "QUEUE_NOT_FOUND",
+    });
+    expect(boss.send).not.toHaveBeenCalled();
+  });
 });

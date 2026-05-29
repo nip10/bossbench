@@ -156,6 +156,41 @@ describe("schedule actions", () => {
   });
 });
 
+describe("enqueue and clone actions", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("posts to the queue enqueue endpoint", async () => {
+    const response = { ok: true, result: { id: "job-1" } };
+    const fetchMock = mockFetchJson(response);
+    await expect(
+      api.enqueueJob("email", {
+        data: { foo: 1 },
+        options: { priority: 2 },
+      }),
+    ).resolves.toEqual(response);
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/api/queues/email/enqueue"),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ data: { foo: 1 }, options: { priority: 2 } }),
+      }),
+    );
+  });
+
+  it("posts to the job clone endpoint", async () => {
+    const response = { ok: true, result: { id: "job-2" } };
+    const fetchMock = mockFetchJson(response);
+    await expect(api.cloneJob("job-1")).resolves.toEqual(response);
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/api/jobs/job-1/clone"),
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+});
+
 describe("tag values", () => {
   afterEach(() => {
     vi.unstubAllGlobals();

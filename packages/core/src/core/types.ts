@@ -19,6 +19,8 @@ export interface BossbenchOptions {
   logo?: string;
   basePath?: string;
   readonly?: boolean;
+  allowManualEnqueue?: boolean;
+  allowQueueClean?: boolean;
   tags?: string[];
 }
 
@@ -26,6 +28,8 @@ export interface NormalizedBossbenchOptions extends BossbenchOptions {
   schema: string;
   title: string;
   readonly: boolean;
+  allowManualEnqueue: boolean;
+  allowQueueClean: boolean;
   tags: string[];
   basePath: string;
 }
@@ -148,4 +152,22 @@ export interface ActivityPoint {
 export interface BulkJobActionResult {
   succeeded: Array<{ id: string }>;
   failed: Array<{ id: string; code: string; message: string }>;
+}
+
+export interface EnqueueJobRequest {
+  data?: Record<string, unknown> | null;
+  options?: {
+    priority?: number;
+    startAfter?: string | number;
+  };
+}
+
+export interface EnqueueJobResult {
+  id: string | null;
+  enqueued: boolean;
+}
+
+export interface CloneJobResult extends EnqueueJobResult {
+  sourceJobId: string;
+  queue: string;
 }
