@@ -32,6 +32,8 @@ describeIntegration("BossbenchRepository pg-boss integration", () => {
     await boss.createQueue("pending");
     await boss.createQueue("reports");
     await boss.createQueue("legacy");
+    await boss.createQueue("active");
+    await boss.createQueue("cancelled");
     await boss.schedule("email", "* * * * *", { scheduled: true });
 
     await pool.query(
@@ -91,6 +93,8 @@ describeIntegration("BossbenchRepository pg-boss integration", () => {
     const overview = await repository.getOverview();
 
     expect(queues.map((queue) => queue.name).sort()).toEqual([
+      "active",
+      "cancelled",
       "email",
       "legacy",
       "pending",
@@ -145,6 +149,8 @@ describeIntegration("BossbenchRepository pg-boss integration", () => {
     expect(bucketWithAverages?.avgWaitMs).toBeGreaterThan(0);
     expect(metrics.buckets.some((bucket) => bucket.retry > 0)).toBe(true);
     expect(metrics.queues.map((queue) => queue.name).sort()).toEqual([
+      "active",
+      "cancelled",
       "email",
       "legacy",
       "pending",
