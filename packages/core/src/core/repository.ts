@@ -278,11 +278,11 @@ export class BossbenchRepository {
              and j.state = $2
              and j.completed_on is not null
              and j.completed_on < $3::timestamptz
-           returning j.id::text
+           returning j.id::text, j.completed_on
          )
          select
            (select count(*)::int from deleted) as "deleted",
-           coalesce(array_agg(id order by id), '{}'::text[]) as "deletedIds",
+           coalesce(array_agg(id order by completed_on asc, id asc), '{}'::text[]) as "deletedIds",
            exists (
               select 1
               from ${this.q("job")} j
