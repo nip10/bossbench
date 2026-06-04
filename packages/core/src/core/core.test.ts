@@ -150,4 +150,39 @@ describe("BossbenchCore", () => {
       "confirm",
     );
   });
+
+  it("still resolves when queue clean audit emission fails", async () => {
+    const onAuditEvent = vi.fn().mockRejectedValue(new Error("audit failed"));
+    const cleanQueue = vi.fn().mockResolvedValue({
+      queue: "email",
+      state: "completed",
+      cutoff: "2026-05-29T10:00:00.000Z",
+      deleted: 2,
+      deletedIds: ["job-1", "job-2"],
+      hasMore: false,
+    });
+    const core = BossbenchCore.create({
+      db: "postgres://example",
+      allowUnauthenticated: true,
+      onAuditEvent,
+    });
+    (core.repository as unknown as { cleanQueue: unknown }).cleanQueue =
+      cleanQueue;
+
+    await expect(
+      core.cleanQueue("email", {
+        state: "completed",
+        cutoff: "2026-05-29T10:00:00.000Z",
+        confirm: "clean completed email",
+      }),
+    ).resolves.toEqual({
+      queue: "email",
+      state: "completed",
+      cutoff: "2026-05-29T10:00:00.000Z",
+      deleted: 2,
+      deletedIds: ["job-1", "job-2"],
+      hasMore: false,
+    });
+    expect(onAuditEvent).toHaveBeenCalledTimes(1);
+  });
 });

@@ -83,7 +83,11 @@ export class BossbenchCore {
       hasMore: result.hasMore,
       ok: true,
     };
-    await this.options.onAuditEvent?.(event);
+    try {
+      await this.options.onAuditEvent?.(event);
+    } catch {
+      // Audit hook failures must not roll back or mask successful deletes.
+    }
     return result;
   }
   requiresAuth() {
