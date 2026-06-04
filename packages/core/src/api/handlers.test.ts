@@ -396,7 +396,23 @@ describe("route table /jobs parsing", () => {
       "cutoff newer than 3600 seconds old",
       {
         state: "completed",
-        cutoff: new Date(Date.now() - 3599_000).toISOString(),
+        cutoff: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+        confirm: "clean completed email",
+      },
+    ],
+    [
+      "non-string cutoff",
+      {
+        state: "completed",
+        cutoff: 0,
+        confirm: "clean completed email",
+      },
+    ],
+    [
+      "non-ISO cutoff",
+      {
+        state: "completed",
+        cutoff: "06/04/2026",
         confirm: "clean completed email",
       },
     ],

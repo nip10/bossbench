@@ -666,10 +666,8 @@ function validateQueueCleanDeleteBody(
   const state = toStringOrEmpty(candidate.state);
   if (state !== "completed" && state !== "failed")
     throw errorWithCode("INVALID_FILTER", "Invalid queue clean state");
-  const cutoff = toStringOrEmpty(candidate.cutoff);
+  const cutoff = parseStrictIsoUtcTimestamp(candidate.cutoff);
   const cutoffDate = Date.parse(cutoff);
-  if (!cutoff || !Number.isFinite(cutoffDate))
-    throw errorWithCode("INVALID_FILTER", "Invalid cutoff");
   if (Date.now() - cutoffDate < 3600_000)
     throw errorWithCode(
       "INVALID_FILTER",
@@ -688,7 +686,7 @@ function validateQueueCleanDeleteBody(
     throw errorWithCode("INVALID_FILTER", "Invalid confirmation");
   return {
     state: state as QueueCleanDeleteRequest["state"],
-    cutoff: new Date(cutoffDate).toISOString(),
+    cutoff,
     confirm,
     ...(limit !== undefined ? { limit } : {}),
   };
@@ -746,4 +744,16 @@ function normalizeStartAfter(value: unknown): string | number {
     if (Number.isFinite(timestamp)) return new Date(timestamp).toISOString();
   }
   throw errorWithCode("INVALID_FILTER", "Invalid enqueue body");
+}
+
+function parseStrictIsoUtcTimestamp(value: unknown): string {
+  if (typeof value !== "string")
+    throw errorWithCode("INVALID_FILTER", "Invalid cutoff");
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp))
+    throw errorWithCode("INVALID_FILTER", "Invalid cutoff");
+  const normalized = new Date(timestamp).toISOString();
+  if (normalized !== value)
+    throw errorWithCode("INVALID_FILTER", "Invalid cutoff");
+  return value;
 }
