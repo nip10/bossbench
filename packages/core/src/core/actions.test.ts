@@ -48,6 +48,29 @@ describe("actions", () => {
       expect(error).toMatchObject({ code: "QUEUE_CLEAN_DISABLED" });
     }
   });
+  it("blocks queue clean delete when preview is disabled", async () => {
+    const s = new PgBossActionService({} as unknown as PgBoss, false, {
+      allowQueueClean: false,
+      allowQueueCleanDelete: true,
+    });
+
+    expect(() => s.ensureQueueCleanDeleteAvailable()).toThrowError(
+      expect.objectContaining({ code: "QUEUE_CLEAN_DISABLED" }),
+    );
+  });
+
+  it("blocks queue clean delete when destructive flag is disabled", async () => {
+    const s = new PgBossActionService({} as unknown as PgBoss, false, {
+      allowQueueClean: true,
+      allowQueueCleanDelete: false,
+    });
+
+    expect(() => s.ensureQueueCleanDeleteAvailable()).toThrowError(
+      expect.objectContaining({
+        code: "QUEUE_CLEAN_DELETE_DISABLED",
+      }),
+    );
+  });
   it("calls pg-boss job methods with queue name and id", async () => {
     const boss = {
       retry: vi.fn(),

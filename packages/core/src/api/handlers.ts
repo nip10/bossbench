@@ -3,6 +3,7 @@ import type {
   BossbenchJobState,
   BulkJobActionResult,
   QueryFilters,
+  QueueCleanDeleteRequest,
   QueueCleanPreviewRequest,
 } from "../core/types";
 
@@ -178,6 +179,21 @@ export function buildRouteTable(core: BossbenchCore): RouteDef[] {
           const request = validateQueueCleanPreviewBody(body);
           actions.ensureQueueCleanAvailable();
           return repository.previewQueueClean(name, request);
+        }),
+    },
+    {
+      method: "post",
+      path: "/queues/:name/clean",
+      handler: async ({ params, body }) =>
+        mutate(async () => {
+          const name = required(
+            params.name,
+            "QUEUE_NOT_FOUND",
+            "Queue not found",
+          );
+          const request = validateQueueCleanDeleteBody(body, name);
+          actions.ensureQueueCleanDeleteAvailable();
+          return core.cleanQueue(name, request);
         }),
     },
     {
@@ -628,6 +644,49 @@ function validateQueueCleanPreviewBody(
   return {
     state: state as QueueCleanPreviewRequest["state"],
     olderThanSeconds,
+    ...(limit !== undefined ? { limit } : {}),
+  };
+}
+
+function validateQueueCleanDeleteBody(
+  body: unknown,
+  queue: string,
+): QueueCleanDeleteRequest {
+  if (!body || typeof body !== "object" || Array.isArray(body))
+    throw errorWithCode("INVALID_FILTER", "Invalid queue clean delete body");
+  const candidate = body as {
+    state?: unknown;
+    cutoff?: unknown;
+    limit?: unknown;
+    confirm?: unknown;
+  };
+  const state = toStringOrEmpty(candidate.state);
+  if (state !== "completed" && state !== "failed")
+    throw errorWithCode("INVALID_FILTER", "Invalid queue clean state");
+  const cutoff = toStringOrEmpty(candidate.cutoff);
+  const cutoffDate = Date.parse(cutoff);
+  if (!cutoff || !Number.isFinite(cutoffDate))
+    throw errorWithCode("INVALID_FILTER", "Invalid cutoff");
+  if (Date.now() - cutoffDate < 3600_000)
+    throw errorWithCode(
+      "INVALID_FILTER",
+      "cutoff must be at least 3600 seconds old",
+    );
+  const limit =
+    candidate.limit === undefined
+      ? undefined
+      : toPositiveInteger(candidate.limit);
+  if (candidate.limit !== undefined && limit === undefined)
+    throw errorWithCode("INVALID_FILTER", "limit must be a positive integer");
+  if (limit !== undefined && limit > 5000)
+    throw errorWithCode("INVALID_FILTER", "limit must be at most 5000");
+  const confirm = toStringOrEmpty(candidate.confirm);
+  if (confirm !== `clean ${state} ${queue}`)
+    throw errorWithCode("INVALID_FILTER", "Invalid confirmation");
+  return {
+    state: state as QueueCleanDeleteRequest["state"],
+    cutoff: new Date(cutoffDate).toISOString(),
+    confirm,
     ...(limit !== undefined ? { limit } : {}),
   };
 }

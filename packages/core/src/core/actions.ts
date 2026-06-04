@@ -3,6 +3,7 @@ import type { PgBoss } from "pg-boss";
 type ActionCapabilities = {
   allowManualEnqueue?: boolean;
   allowQueueClean?: boolean;
+  allowQueueCleanDelete?: boolean;
 };
 
 export class PgBossActionService {
@@ -30,6 +31,14 @@ export class PgBossActionService {
       throw actionError(
         "QUEUE_CLEAN_DISABLED",
         "Queue clean preview is disabled",
+      );
+  }
+  ensureQueueCleanDeleteAvailable() {
+    this.ensureQueueCleanAvailable();
+    if (!this.capabilities.allowQueueCleanDelete)
+      throw actionError(
+        "QUEUE_CLEAN_DELETE_DISABLED",
+        "Queue clean delete is disabled",
       );
   }
   async retryJob(name: string, id: string) {

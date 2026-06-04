@@ -288,3 +288,19 @@ export interface QueueCleanPreviewResult {
   hasMore: boolean;
   cutoff: string;
 }
+
+export interface QueueCleanDeleteRequest {
+  state: Extract<BossbenchJobState, "completed" | "failed">;
+  cutoff: string;
+  limit?: number;
+  confirm: string;
+}
+
+export interface QueueCleanDeleteResult {
+  queue: string;
+  state: Extract<BossbenchJobState, "completed" | "failed">;
+  cutoff: string;
+  deleted: number;
+  deletedIds: string[];
+  hasMore: boolean;
+}

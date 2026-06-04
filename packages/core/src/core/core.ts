@@ -26,6 +26,7 @@ export class BossbenchCore {
       new PgBossActionService(normalized.boss, normalized.readonly, {
         allowManualEnqueue: normalized.allowManualEnqueue,
         allowQueueClean: normalized.allowQueueClean,
+        allowQueueCleanDelete: normalized.allowQueueCleanDelete,
       }),
     );
   }
@@ -74,5 +75,8 @@ export class BossbenchCore {
   }
   actionsEnabled() {
     return !!this.options.boss && !this.options.readonly;
+  }
+  async cleanQueue(name: string, _request: unknown) {
+    throw new Error(`cleanQueue not implemented for ${name}`);
   }
 }
