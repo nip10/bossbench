@@ -12,6 +12,7 @@ describe("BossbenchCore", () => {
     expect(core.validateAuth("u", "p")).toBe(true);
     expect(core.actionsEnabled()).toBe(false);
     expect(core.getConfig().allowManualEnqueue).toBe(false);
+    expect(core.getConfig().allowQueueCleanDelete).toBe(false);
     expect(core.getConfig().alerts).toEqual({
       enabled: false,
       ruleCount: 0,

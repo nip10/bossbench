@@ -13,11 +13,24 @@ describe("normalizeOptions", () => {
     expect(o.tags).toEqual([]);
     expect(o.allowManualEnqueue).toBe(false);
     expect(o.allowQueueClean).toBe(false);
+    expect(o.allowQueueCleanDelete).toBe(false);
     expect(o.alerts).toEqual({
       enabled: false,
       rules: [],
       contactPoints: [],
     });
+  });
+  it("normalizes destructive queue clean and audit hook", () => {
+    const onAuditEvent = async () => undefined;
+    const o = normalizeOptions({
+      db: "postgres://example",
+      allowUnauthenticated: true,
+      allowQueueCleanDelete: true,
+      onAuditEvent,
+    });
+
+    expect(o.allowQueueCleanDelete).toBe(true);
+    expect(o.onAuditEvent).toBe(onAuditEvent);
   });
   it("normalizes configured alert rules and contact points", () => {
     const o = normalizeOptions({

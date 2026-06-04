@@ -20,6 +20,7 @@ export function normalizeOptions(
     readonly: options.readonly ?? !auth,
     allowManualEnqueue: options.allowManualEnqueue ?? false,
     allowQueueClean: options.allowQueueClean ?? false,
+    allowQueueCleanDelete: options.allowQueueCleanDelete ?? false,
     alerts: normalizeAlerts(options.alerts),
     tags: options.tags ?? [],
     basePath: options.basePath ?? "/",

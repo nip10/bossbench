@@ -39,6 +39,7 @@ export class BossbenchCore {
       hasBoss: !!this.options.boss,
       allowManualEnqueue: this.options.allowManualEnqueue,
       allowQueueClean: this.options.allowQueueClean,
+      allowQueueCleanDelete: this.options.allowQueueCleanDelete,
       alerts: {
         enabled: this.options.alerts.enabled,
         ruleCount: this.options.alerts.rules.length,
