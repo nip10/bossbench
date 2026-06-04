@@ -4,8 +4,11 @@ import { normalizeOptions } from "./options";
 import { BossbenchRepository } from "./repository";
 import type {
   BossbenchAlertsResponse,
+  BossbenchAuditEvent,
   BossbenchOptions,
   NormalizedBossbenchOptions,
+  QueueCleanDeleteRequest,
+  QueueCleanDeleteResult,
 } from "./types";
 
 export class BossbenchCore {
@@ -62,6 +65,26 @@ export class BossbenchCore {
       violations: snapshot ? evaluateAlertRules(alerts.rules, snapshot) : [],
       delivery: { enabled: false, available: false },
     };
+  }
+  async cleanQueue(
+    queue: string,
+    request: QueueCleanDeleteRequest,
+  ): Promise<QueueCleanDeleteResult> {
+    const result = await this.repository.cleanQueue(queue, request);
+    const event: BossbenchAuditEvent = {
+      type: "queue.clean.delete",
+      at: new Date().toISOString(),
+      queue,
+      state: request.state,
+      cutoff: request.cutoff,
+      limit: request.limit ?? 1000,
+      deleted: result.deleted,
+      deletedIds: result.deletedIds,
+      hasMore: result.hasMore,
+      ok: true,
+    };
+    await this.options.onAuditEvent?.(event);
+    return result;
   }
   requiresAuth() {
     return !!this.options.auth?.username && !!this.options.auth?.password;

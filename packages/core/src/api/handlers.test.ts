@@ -508,6 +508,62 @@ describe("route table /jobs parsing", () => {
     expect(cleanQueue).not.toHaveBeenCalled();
   });
 
+  it("invokes core.cleanQueue for queue clean delete", async () => {
+    const cleanQueue = vi.fn().mockResolvedValue({
+      queue: "email",
+      state: "completed",
+      cutoff: "2026-05-25T12:00:00.000Z",
+      deleted: 1,
+      deletedIds: ["job-1"],
+      hasMore: false,
+    });
+    const repositoryCleanQueue = vi.fn();
+    const route = buildRouteTable(
+      fakeCore(
+        vi.fn(),
+        { cleanQueue: repositoryCleanQueue },
+        { ensureQueueCleanDeleteAvailable: vi.fn(), cleanQueue },
+      ) as never,
+    ).find(
+      (candidate) =>
+        candidate.method === "post" && candidate.path === "/queues/:name/clean",
+    );
+
+    expect(route).toBeDefined();
+    assertRoute(route);
+
+    const result = await route.handler({
+      params: { name: "email" },
+      query: {},
+      body: {
+        state: "completed",
+        cutoff: "2026-05-25T12:00:00.000Z",
+        confirm: "clean completed email",
+      },
+    });
+
+    expect(result).toEqual({
+      status: 200,
+      body: {
+        ok: true,
+        result: {
+          queue: "email",
+          state: "completed",
+          cutoff: "2026-05-25T12:00:00.000Z",
+          deleted: 1,
+          deletedIds: ["job-1"],
+          hasMore: false,
+        },
+      },
+    });
+    expect(cleanQueue).toHaveBeenCalledWith("email", {
+      state: "completed",
+      cutoff: "2026-05-25T12:00:00.000Z",
+      confirm: "clean completed email",
+    });
+    expect(repositoryCleanQueue).not.toHaveBeenCalled();
+  });
+
   it("cleans queue after guard validation", async () => {
     const cleanQueue = vi.fn().mockResolvedValue({
       queue: "email",
@@ -521,8 +577,8 @@ describe("route table /jobs parsing", () => {
     const route = buildRouteTable(
       fakeCore(
         vi.fn(),
-        { cleanQueue },
-        { ensureQueueCleanDeleteAvailable },
+        {},
+        { ensureQueueCleanDeleteAvailable, cleanQueue },
       ) as never,
     ).find(
       (candidate) =>

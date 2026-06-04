@@ -108,4 +108,46 @@ describe("BossbenchCore", () => {
     });
     expect(getAlertEvaluationSnapshot).not.toHaveBeenCalled();
   });
+  it("emits an audit event after queue clean delete", async () => {
+    const onAuditEvent = vi.fn().mockResolvedValue(undefined);
+    const cleanQueue = vi.fn().mockResolvedValue({
+      queue: "email",
+      state: "completed",
+      cutoff: "2026-05-29T10:00:00.000Z",
+      deleted: 2,
+      deletedIds: ["job-1", "job-2"],
+      hasMore: true,
+    });
+    const core = BossbenchCore.create({
+      db: "postgres://example",
+      allowUnauthenticated: true,
+      onAuditEvent,
+    });
+    (core.repository as unknown as { cleanQueue: unknown }).cleanQueue =
+      cleanQueue;
+
+    const result = await core.cleanQueue("email", {
+      state: "completed",
+      cutoff: "2026-05-29T10:00:00.000Z",
+      confirm: "clean completed email",
+    });
+
+    expect(result.deleted).toBe(2);
+    expect(onAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "queue.clean.delete",
+        queue: "email",
+        state: "completed",
+        cutoff: "2026-05-29T10:00:00.000Z",
+        limit: 1000,
+        deleted: 2,
+        deletedIds: ["job-1", "job-2"],
+        hasMore: true,
+        ok: true,
+      }),
+    );
+    expect(JSON.stringify(onAuditEvent.mock.calls[0]?.[0])).not.toContain(
+      "confirm",
+    );
+  });
 });

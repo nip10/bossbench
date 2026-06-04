@@ -14,6 +14,7 @@ import type {
   PaginatedResponse,
   QueryFilters,
   QueueCleanDeleteRequest,
+  QueueCleanDeleteResult,
   QueueCleanPreviewRequest,
   QueueCleanPreviewResult,
   QueueDetail,
@@ -251,8 +252,53 @@ export class BossbenchRepository {
     return { items };
   }
 
-  async cleanQueue(name: string, _request: QueueCleanDeleteRequest) {
-    throw new Error(`cleanQueue not implemented for ${name}`);
+  async cleanQueue(
+    queue: string,
+    request: QueueCleanDeleteRequest,
+  ): Promise<QueueCleanDeleteResult> {
+    const limit = clamp(request.limit ?? 1000, 1, 5000);
+    const rows = await this.withClient((c) =>
+      this.safeQuery<Row>(
+        c,
+        `with doomed as (
+           select j.id, j.completed_on
+           from ${this.q("job")} j
+           where j.name = $1
+             and j.state = $2
+             and j.completed_on is not null
+             and j.completed_on < $3::timestamptz
+           order by j.completed_on asc, j.id asc
+           limit $4
+           for update of j skip locked
+         ), deleted as (
+           delete from ${this.q("job")} j
+           using doomed d
+           where j.id = d.id
+             and j.name = $1
+             and j.state = $2
+             and j.completed_on is not null
+             and j.completed_on < $3::timestamptz
+           returning j.id::text
+         )
+         select
+           (select count(*)::int from deleted) as "deleted",
+           coalesce(array_agg(id order by id), '{}'::text[]) as "deletedIds",
+           (select count(*) from doomed) > $4 as "hasMore"
+         from deleted`,
+        [queue, request.state, request.cutoff, limit],
+      ),
+    );
+    const row = rows[0] ?? {};
+    return {
+      queue,
+      state: request.state,
+      cutoff: request.cutoff,
+      deleted: numberOrDefault(row.deleted, 0),
+      deletedIds: Array.isArray(row.deletedIds)
+        ? row.deletedIds.map(String)
+        : [],
+      hasMore: Boolean(row.hasMore),
+    };
   }
 
   async getAlertEvaluationSnapshot(

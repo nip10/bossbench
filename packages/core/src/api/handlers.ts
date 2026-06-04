@@ -193,7 +193,7 @@ export function buildRouteTable(core: BossbenchCore): RouteDef[] {
           );
           const request = validateQueueCleanDeleteBody(body, name);
           actions.ensureQueueCleanDeleteAvailable();
-          return repository.cleanQueue(name, request);
+          return core.cleanQueue(name, request);
         }),
     },
     {
