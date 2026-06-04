@@ -61,7 +61,8 @@ app.route(
 | `allowUnauthenticated` | Explicitly allow unprotected browsing. Defaults to `false`. |
 | `readonly` | Disable all mutations. Defaults to `true` without auth, `false` with auth. |
 | `allowManualEnqueue` | Enable manual enqueue and enqueue-copy actions. Defaults to `false`. |
-| `allowQueueClean` | Enable non-destructive queue clean preview. Requires `boss`, writable mode, and route protection. Defaults to `false`. |
+| `allowQueueClean` | Enable queue clean preview only. Requires `boss`, writable mode, and route protection. Defaults to `false`. |
+| `allowQueueCleanDelete` | Enable irreversible queue clean deletion. Requires exact confirmation, direct SQL safety, and route protection. Defaults to `false`. |
 | `alerts` | Optional config-driven alert rules and contact points. Evaluation is read-only; delivery runners are opt-in. |
 | `tags` | Fields from `job.data` that can be used as filters. |
 
@@ -104,3 +105,5 @@ Rules support `failed_count`, `dead_letter_count`, `retry_backlog_count`, `oldes
 ## Security
 
 Bossbench requires non-empty `auth` by default. Use `allowUnauthenticated: true` only for local development or when another middleware protects the route. Without `auth`, Bossbench defaults to read-only mode.
+
+Queue clean is split into preview and delete. `allowQueueClean` enables preview, and `allowQueueCleanDelete` enables irreversible deletion only when preview is also allowed. Exact confirmation text is required before deletion runs. Queue clean targets pg-boss storage directly, so failed deletion removes the underlying dead-letter/retry evidence. It is batch-limited; repeat it while `hasMore` is true when draining large queues.

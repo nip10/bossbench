@@ -11,6 +11,8 @@ import type {
   OverviewStats,
   PaginatedResponse,
   QueryFilters,
+  QueueCleanDeleteRequest,
+  QueueCleanDeleteResult,
   QueueCleanPreviewRequest,
   QueueCleanPreviewResult,
   QueueDetail,
@@ -51,6 +53,7 @@ export const api = {
       hasBoss?: boolean;
       allowManualEnqueue?: boolean;
       allowQueueClean?: boolean;
+      allowQueueCleanDelete?: boolean;
       tags?: string[];
     }>("/config"),
   overview: () => fetchJson<OverviewStats>("/overview"),
@@ -120,6 +123,14 @@ export const api = {
   previewQueueClean: (queue: string, request: QueueCleanPreviewRequest) =>
     fetchJson<MutationResponse<QueueCleanPreviewResult>>(
       `/queues/${encodeURIComponent(queue)}/clean-preview`,
+      {
+        method: "POST",
+        body: JSON.stringify(request),
+      },
+    ),
+  cleanQueue: (queue: string, request: QueueCleanDeleteRequest) =>
+    fetchJson<MutationResponse<QueueCleanDeleteResult>>(
+      `/queues/${encodeURIComponent(queue)}/clean`,
       {
         method: "POST",
         body: JSON.stringify(request),

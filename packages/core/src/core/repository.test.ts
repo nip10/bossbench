@@ -218,6 +218,7 @@ describe("BossbenchRepository.previewQueueClean", () => {
       "completed_on < $3::timestamptz",
     );
     expect(query.mock.calls[0]?.[0]).toContain("limit $4");
+    expect(query.mock.calls[0]?.[0]).not.toContain("count(*) from doomed");
     expect(query.mock.calls[0]?.[1]).toEqual([
       "email",
       "completed",
@@ -234,5 +235,72 @@ describe("BossbenchRepository.previewQueueClean", () => {
       cutoff: "2026-05-29T10:00:00.000Z",
     });
     dateNow.mockRestore();
+  });
+});
+
+describe("BossbenchRepository.cleanQueue", () => {
+  it("builds an atomic delete query and maps the result", async () => {
+    const query = vi.fn().mockResolvedValueOnce({
+      rows: [
+        {
+          deleted: 2,
+          deletedIds: ["job-1", "job-2"],
+          hasMore: true,
+        },
+      ],
+    });
+    const repository = new BossbenchRepository(
+      { query } as never,
+      "bossbench",
+      [],
+    );
+
+    const result = await repository.cleanQueue("email", {
+      state: "completed",
+      cutoff: "2026-05-29T10:00:00.000Z",
+      confirm: "clean completed email",
+      limit: 25,
+    });
+
+    expect(query.mock.calls[0]?.[0]).toContain("with doomed as");
+    expect(query.mock.calls[0]?.[0]).toContain("for update of j skip locked");
+    expect(query.mock.calls[0]?.[0]).toContain("delete from");
+    expect(query.mock.calls[0]?.[0]).toContain("and j.name = $1");
+    expect(query.mock.calls[0]?.[0]).toContain("and j.state = $2");
+    expect(query.mock.calls[0]?.[0]).toContain(
+      "and j.completed_on < $3::timestamptz",
+    );
+    expect(query.mock.calls[0]?.[0]).toContain("name = $1");
+    expect(query.mock.calls[0]?.[0]).toContain("state = $2");
+    expect(query.mock.calls[0]?.[0]).toContain(
+      "completed_on < $3::timestamptz",
+    );
+    expect(query.mock.calls[0]?.[0]).toContain(
+      "order by j.completed_on asc, j.id asc",
+    );
+    expect(query.mock.calls[0]?.[0]).toContain("limit $4");
+    expect(query.mock.calls[0]?.[0]).toContain("exists (");
+    expect(query.mock.calls[0]?.[0]).toContain('from "bossbench"."job" j');
+    expect(query.mock.calls[0]?.[0]).not.toContain("count(*) from doomed");
+    expect(query.mock.calls[0]?.[0]).toContain(
+      "returning j.id::text, j.completed_on",
+    );
+    expect(query.mock.calls[0]?.[0]).toContain(
+      "array_agg(id order by completed_on asc, id asc)",
+    );
+    expect(query.mock.calls[0]?.[1]).toEqual([
+      "email",
+      "completed",
+      "2026-05-29T10:00:00.000Z",
+      25,
+    ]);
+    expect(result).toEqual({
+      queue: "email",
+      state: "completed",
+      cutoff: "2026-05-29T10:00:00.000Z",
+      deleted: 2,
+      deletedIds: ["job-1", "job-2"],
+      hasMore: true,
+    });
   });
 });

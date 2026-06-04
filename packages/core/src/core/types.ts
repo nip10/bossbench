@@ -48,6 +48,21 @@ export interface BossbenchAlertsOptions {
   contactPoints?: BossbenchAlertContactPoint[];
 }
 
+export interface BossbenchAuditEvent {
+  type: "queue.clean.delete";
+  at: string;
+  queue: string;
+  state: Extract<BossbenchJobState, "completed" | "failed">;
+  cutoff: string;
+  limit: number;
+  deleted: number;
+  deletedIds: string[];
+  hasMore: boolean;
+  ok: boolean;
+  errorCode?: string;
+  errorMessage?: string;
+}
+
 export interface NormalizedBossbenchAlertsOptions {
   enabled: boolean;
   rules: BossbenchAlertRule[];
@@ -66,6 +81,8 @@ export interface BossbenchOptions {
   readonly?: boolean;
   allowManualEnqueue?: boolean;
   allowQueueClean?: boolean;
+  allowQueueCleanDelete?: boolean;
+  onAuditEvent?: (event: BossbenchAuditEvent) => void | Promise<void>;
   alerts?: BossbenchAlertsOptions;
   tags?: string[];
 }
@@ -76,6 +93,7 @@ export interface NormalizedBossbenchOptions extends BossbenchOptions {
   readonly: boolean;
   allowManualEnqueue: boolean;
   allowQueueClean: boolean;
+  allowQueueCleanDelete: boolean;
   alerts: NormalizedBossbenchAlertsOptions;
   tags: string[];
   basePath: string;
@@ -269,4 +287,20 @@ export interface QueueCleanPreviewResult {
   sampleIds: string[];
   hasMore: boolean;
   cutoff: string;
+}
+
+export interface QueueCleanDeleteRequest {
+  state: Extract<BossbenchJobState, "completed" | "failed">;
+  cutoff: string;
+  limit?: number;
+  confirm: string;
+}
+
+export interface QueueCleanDeleteResult {
+  queue: string;
+  state: Extract<BossbenchJobState, "completed" | "failed">;
+  cutoff: string;
+  deleted: number;
+  deletedIds: string[];
+  hasMore: boolean;
 }

@@ -36,6 +36,7 @@ import type {
   MetricPoint,
   MetricsResponse,
   OverviewStats,
+  QueueCleanDeleteResult,
   QueueCleanPreviewResult,
   QueueInfo,
   QueueMetricSummary,
@@ -243,6 +244,12 @@ type QueueCleanPreviewState = {
   result?: QueueCleanPreviewResult;
 } | null;
 
+type QueueCleanDeleteState = {
+  status: "running" | "success" | "error";
+  message: string;
+  result?: QueueCleanDeleteResult;
+} | null;
+
 function summarizeBulkFailures(
   failed: BulkJobActionResult["failed"],
   limit = 3,
@@ -256,6 +263,16 @@ function summarizeBulkFailures(
   const remaining = failed.length - limit;
 
   return `Failed: ${preview}${remaining > 0 ? `, +${remaining} more` : ""}`;
+}
+
+function queueCleanDeleteWarningCopy(
+  state: Extract<BossbenchJobState, "completed" | "failed">,
+) {
+  if (state === "failed") {
+    return "This permanently deletes failed pg-boss job rows from Postgres; deleted jobs disappear from Dead Letter, metrics, timelines, and cannot be retried.";
+  }
+
+  return "This permanently deletes completed pg-boss job rows from Postgres; deleted jobs disappear from historical job lists and metrics.";
 }
 
 async function invalidateBulkActionQueries(queryClient: QueryClient) {
@@ -606,23 +623,48 @@ export function QueuePage() {
   const [feedback, setFeedback] = useState<JobFeedbackState>(null);
   const [previewState, setPreviewState] =
     useState<QueueCleanPreviewState>(null);
+  const [deleteState, setDeleteState] = useState<QueueCleanDeleteState>(null);
   const [previewStateInput, setPreviewStateInput] = useState<
     "completed" | "failed"
   >("completed");
   const [previewAgeInput, setPreviewAgeInput] = useState("3600");
   const [previewLimitInput, setPreviewLimitInput] = useState("1000");
+  const [deleteConfirmInput, setDeleteConfirmInput] = useState("");
   const [enqueueInFlight, setEnqueueInFlight] = useState(false);
   const queueNameRef = useRef(queueName);
   const actionsEnabled = !!config?.hasBoss && !config.readonly;
   const manualEnqueueEnabled = actionsEnabled && !!config?.allowManualEnqueue;
   const queueCleanPreviewEnabled = actionsEnabled && !!config?.allowQueueClean;
+  const queueCleanDeleteEnabled =
+    queueCleanPreviewEnabled && !!config?.allowQueueCleanDelete;
   const previewInFlight = previewState?.status === "running";
+  const deleteInFlight = deleteState?.status === "running";
+  const previewSuccess =
+    previewState?.status === "success" && !!previewState.result;
+  const deleteReady =
+    queueCleanDeleteEnabled &&
+    previewSuccess &&
+    previewState?.result?.queue === queueName;
+  const expectedDeleteConfirmation = previewState?.result
+    ? `clean ${previewState.result.state} ${previewState.result.queue}`
+    : "";
+  const deleteConfirmMatches =
+    deleteReady && deleteConfirmInput === expectedDeleteConfirmation;
+
+  const resetQueueCleanPreview = () => {
+    setPreviewState(null);
+    setDeleteConfirmInput("");
+  };
 
   useEffect(() => {
     queueNameRef.current = queueName;
     setPreviewState((current) =>
       current?.result?.queue === queueName ? current : null,
     );
+    setDeleteState((current) =>
+      current?.result?.queue === queueName ? current : null,
+    );
+    setDeleteConfirmInput("");
   }, [queueName]);
 
   const enqueueJob = async () => {
@@ -661,8 +703,10 @@ export function QueuePage() {
   };
 
   const previewQueueClean = async () => {
-    if (!queueCleanPreviewEnabled || previewInFlight) return;
+    if (!queueCleanPreviewEnabled || previewInFlight || deleteInFlight) return;
     setPreviewState({ status: "running", message: "Loading preview…" });
+    setDeleteState(null);
+    setDeleteConfirmInput("");
     try {
       const request = {
         state: previewStateInput,
@@ -681,6 +725,41 @@ export function QueuePage() {
       setPreviewState({
         status: "error",
         message: error instanceof Error ? error.message : "Preview failed",
+      });
+    }
+  };
+
+  const cleanQueue = async () => {
+    if (!deleteReady || !deleteConfirmMatches || deleteInFlight) return;
+    const previewResult = previewState?.result;
+    if (!previewResult) return;
+
+    setDeleteState({ status: "running", message: "Deleting jobs…" });
+    try {
+      const request = {
+        state: previewResult.state,
+        cutoff: previewResult.cutoff,
+        confirm: deleteConfirmInput,
+        ...(previewLimitInput ? { limit: Number(previewLimitInput) } : {}),
+      };
+      const response = await api.cleanQueue(queueName, {
+        ...request,
+      });
+      if (queueNameRef.current !== queueName) return;
+      await invalidateQueueActionQueries(queryClient, queueName);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.deadLetter });
+      setPreviewState(null);
+      setDeleteConfirmInput("");
+      setDeleteState({
+        status: "success",
+        message: `Deleted ${response.result.deleted.toLocaleString()} job${response.result.deleted === 1 ? "" : "s"}.`,
+        result: response.result,
+      });
+    } catch (error) {
+      if (queueNameRef.current !== queueName) return;
+      setDeleteState({
+        status: "error",
+        message: error instanceof Error ? error.message : "Delete failed",
       });
     }
   };
@@ -760,7 +839,11 @@ export function QueuePage() {
       {queueCleanPreviewEnabled ? (
         <Section
           title="Queue clean preview"
-          subtitle="Preview only; no jobs are deleted"
+          subtitle={
+            queueCleanDeleteEnabled
+              ? "Preview matching jobs before the irreversible delete"
+              : "Preview only; no jobs are deleted"
+          }
         >
           <div className="stack" style={{ gap: 12 }}>
             <div className="filters" style={{ alignItems: "end" }}>
@@ -771,12 +854,13 @@ export function QueuePage() {
                 <span className="muted">State</span>
                 <select
                   value={previewStateInput}
-                  disabled={previewInFlight}
-                  onChange={(e) =>
+                  disabled={previewInFlight || deleteInFlight}
+                  onChange={(e) => {
                     setPreviewStateInput(
                       e.target.value as "completed" | "failed",
-                    )
-                  }
+                    );
+                    resetQueueCleanPreview();
+                  }}
                 >
                   <option value="completed">Completed</option>
                   <option value="failed">Failed</option>
@@ -790,8 +874,11 @@ export function QueuePage() {
                 <Input
                   type="number"
                   value={previewAgeInput}
-                  disabled={previewInFlight}
-                  onChange={(e) => setPreviewAgeInput(e.target.value)}
+                  disabled={previewInFlight || deleteInFlight}
+                  onChange={(e) => {
+                    setPreviewAgeInput(e.target.value);
+                    resetQueueCleanPreview();
+                  }}
                 />
               </div>
               <div
@@ -802,13 +889,18 @@ export function QueuePage() {
                 <Input
                   type="number"
                   value={previewLimitInput}
-                  disabled={previewInFlight}
-                  onChange={(e) => setPreviewLimitInput(e.target.value)}
+                  disabled={previewInFlight || deleteInFlight}
+                  onChange={(e) => {
+                    setPreviewLimitInput(e.target.value);
+                    resetQueueCleanPreview();
+                  }}
                 />
               </div>
               <Button
                 type="button"
-                disabled={!queueCleanPreviewEnabled || previewInFlight}
+                disabled={
+                  !queueCleanPreviewEnabled || previewInFlight || deleteInFlight
+                }
                 onClick={() => void previewQueueClean()}
               >
                 {previewInFlight ? "Loading preview…" : "Preview clean"}
@@ -836,6 +928,69 @@ export function QueuePage() {
                     ? "More jobs match beyond the sample."
                     : "All matching jobs shown."}
                 </div>
+              </div>
+            ) : null}
+            {deleteReady ? (
+              <div className="stack" style={{ gap: 12, marginTop: 4 }}>
+                <div className="banner compact" role="note">
+                  <strong>Irreversible cleanup.</strong> This permanently
+                  deletes matching {previewState.result?.state} jobs from queue{" "}
+                  {previewState.result?.queue}.{" "}
+                  {previewState.result
+                    ? queueCleanDeleteWarningCopy(previewState.result.state)
+                    : null}
+                </div>
+                <div className="stack" style={{ gap: 8 }}>
+                  <div className="muted">
+                    Type{" "}
+                    <span className="mono">{expectedDeleteConfirmation}</span>{" "}
+                    to enable deletion.
+                  </div>
+                  <Input
+                    value={deleteConfirmInput}
+                    disabled={deleteInFlight || previewInFlight}
+                    onChange={(event) =>
+                      setDeleteConfirmInput(event.target.value)
+                    }
+                    aria-label="Delete confirmation"
+                    placeholder={expectedDeleteConfirmation}
+                  />
+                  <div className="filters" style={{ alignItems: "center" }}>
+                    <Button
+                      type="button"
+                      className="danger"
+                      disabled={
+                        !deleteReady ||
+                        !deleteConfirmMatches ||
+                        deleteInFlight ||
+                        previewInFlight
+                      }
+                      onClick={() => void cleanQueue()}
+                    >
+                      {deleteInFlight ? "Deleting…" : "Delete matching jobs"}
+                    </Button>
+                    <div className="muted">This action cannot be undone.</div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+            {deleteState ? (
+              <div className="banner compact" role="status">
+                <div>{deleteState.message}</div>
+                {deleteState.result ? (
+                  <div className="stack" style={{ gap: 4, marginTop: 8 }}>
+                    <div>
+                      Deleted IDs:{" "}
+                      {deleteState.result.deletedIds.length
+                        ? deleteState.result.deletedIds.join(", ")
+                        : "None"}
+                    </div>
+                    <div>Cutoff: {deleteState.result.cutoff}</div>
+                    <div>
+                      Has more: {deleteState.result.hasMore ? "Yes" : "No"}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             ) : null}
           </div>

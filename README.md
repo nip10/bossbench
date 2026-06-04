@@ -24,6 +24,8 @@ npx @bossbench/cli init
 
 The CLI auto-injects Hono, h3, Nuxt/Nitro, AdonisJS, TanStack Start, Express, Fastify, Elysia, NestJS, and Next.js projects.
 
+Queue clean is split into preview and delete: `allowQueueClean` enables preview, and `allowQueueCleanDelete` only enables irreversible deletion when preview is already allowed too. Exact confirmation text is required before a delete runs. Deletions target pg-boss storage directly, so failed deletion removes the underlying dead-letter/retry evidence. Clean is batch-limited, so repeat it while `hasMore` is true to drain large backlogs.
+
 ## Examples
 
 - `examples/demo` - seeded Hono demo
@@ -147,7 +149,8 @@ export default app;
 | `allowUnauthenticated` | Explicitly allow unprotected browsing. Defaults to `false`. |
 | `readonly` | Disable all mutations. Defaults to `true` without auth, `false` with auth. |
 | `allowManualEnqueue` | Enable manual enqueue and enqueue-copy actions. Defaults to `false`. |
-| `allowQueueClean` | Enable queue clean capabilities when the safety design lands. Defaults to `false`. |
+| `allowQueueClean` | Enable queue clean preview only. Defaults to `false`. |
+| `allowQueueCleanDelete` | Enable irreversible queue clean deletion. Requires exact confirmation and direct SQL safety. Defaults to `false`. |
 | `alerts` | Optional config-driven alert rules and contact points. Evaluation is SQL-backed and read-only; delivery runners are opt-in. |
 | `tags` | Fields from `job.data` that can be used as filters. |
 

@@ -298,6 +298,327 @@ describe("route table /jobs parsing", () => {
     expect(listJobs).not.toHaveBeenCalled();
   });
 
+  it.each([
+    [
+      "state",
+      { cutoff: "2026-05-25T12:00:00.000Z", confirm: "clean completed email" },
+    ],
+    ["cutoff", { state: "completed", confirm: "clean completed email" }],
+    ["confirm", { state: "completed", cutoff: "2026-05-25T12:00:00.000Z" }],
+    [
+      "limit",
+      {
+        state: "completed",
+        cutoff: "2026-05-25T12:00:00.000Z",
+        confirm: "clean completed email",
+        limit: 6000,
+      },
+    ],
+  ] as const)("validates queue clean delete %s", async (_field, body) => {
+    const cleanQueue = vi.fn();
+    const route = buildRouteTable(
+      fakeCore(
+        vi.fn(),
+        {},
+        {
+          cleanQueue,
+          ensureQueueCleanDeleteAvailable: vi.fn(),
+        },
+      ) as never,
+    ).find(
+      (candidate) =>
+        candidate.method === "post" && candidate.path === "/queues/:name/clean",
+    );
+    expect(route).toBeDefined();
+    assertRoute(route);
+    await expect(
+      route.handler({ params: { name: "email" }, query: {}, body }),
+    ).resolves.toMatchObject({
+      status: 400,
+      body: { error: { code: "INVALID_FILTER" } },
+    });
+    expect(cleanQueue).not.toHaveBeenCalled();
+  });
+
+  it("returns INVALID_FILTER for bad confirmation", async () => {
+    const cleanQueue = vi.fn();
+    const route = buildRouteTable(
+      fakeCore(
+        vi.fn(),
+        {},
+        {
+          cleanQueue,
+          ensureQueueCleanDeleteAvailable: vi.fn(),
+        },
+      ) as never,
+    ).find(
+      (candidate) =>
+        candidate.method === "post" && candidate.path === "/queues/:name/clean",
+    );
+    expect(route).toBeDefined();
+    assertRoute(route);
+    await expect(
+      route.handler({
+        params: { name: "email" },
+        query: {},
+        body: {
+          state: "completed",
+          cutoff: "2026-05-25T12:00:00.000Z",
+          confirm: "nope",
+        },
+      }),
+    ).resolves.toMatchObject({
+      status: 400,
+      body: { error: { code: "INVALID_FILTER" } },
+    });
+  });
+
+  it.each([
+    ["non-object body", null],
+    ["array body", []],
+    [
+      "invalid state",
+      {
+        state: "bogus",
+        cutoff: "2026-05-25T12:00:00.000Z",
+        confirm: "clean completed email",
+      },
+    ],
+    [
+      "invalid cutoff string",
+      {
+        state: "completed",
+        cutoff: "not-a-date",
+        confirm: "clean completed email",
+      },
+    ],
+    [
+      "cutoff newer than 3600 seconds old",
+      {
+        state: "completed",
+        cutoff: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+        confirm: "clean completed email",
+      },
+    ],
+    [
+      "non-string cutoff",
+      {
+        state: "completed",
+        cutoff: 0,
+        confirm: "clean completed email",
+      },
+    ],
+    [
+      "non-ISO cutoff",
+      {
+        state: "completed",
+        cutoff: "06/04/2026",
+        confirm: "clean completed email",
+      },
+    ],
+    [
+      "limit <= 0",
+      {
+        state: "completed",
+        cutoff: "2026-05-25T12:00:00.000Z",
+        limit: 0,
+        confirm: "clean completed email",
+      },
+    ],
+    [
+      "non-integer limit",
+      {
+        state: "completed",
+        cutoff: "2026-05-25T12:00:00.000Z",
+        limit: 1.5,
+        confirm: "clean completed email",
+      },
+    ],
+    [
+      "non-number limit",
+      {
+        state: "completed",
+        cutoff: "2026-05-25T12:00:00.000Z",
+        limit: "10",
+        confirm: "clean completed email",
+      },
+    ],
+  ] as const)("validates queue clean delete %s", async (_label, body) => {
+    const cleanQueue = vi.fn();
+    const route = buildRouteTable(
+      fakeCore(
+        vi.fn(),
+        {},
+        {
+          cleanQueue,
+          ensureQueueCleanDeleteAvailable: vi.fn(),
+        },
+      ) as never,
+    ).find(
+      (candidate) =>
+        candidate.method === "post" && candidate.path === "/queues/:name/clean",
+    );
+    expect(route).toBeDefined();
+    assertRoute(route);
+
+    await expect(
+      route.handler({ params: { name: "email" }, query: {}, body }),
+    ).resolves.toMatchObject({
+      status: 400,
+      body: { error: { code: "INVALID_FILTER" } },
+    });
+    expect(cleanQueue).not.toHaveBeenCalled();
+  });
+
+  it("returns a 409 when queue clean delete is disabled", async () => {
+    const ensureQueueCleanDeleteAvailable = vi.fn(() => {
+      throw Object.assign(new Error("Queue clean delete is disabled"), {
+        code: "QUEUE_CLEAN_DELETE_DISABLED",
+      });
+    });
+    const cleanQueue = vi.fn();
+    const route = buildRouteTable(
+      fakeCore(
+        vi.fn(),
+        { cleanQueue },
+        { ensureQueueCleanDeleteAvailable },
+      ) as never,
+    ).find(
+      (candidate) =>
+        candidate.method === "post" && candidate.path === "/queues/:name/clean",
+    );
+
+    expect(route).toBeDefined();
+    assertRoute(route);
+
+    await expect(
+      route.handler({
+        params: { name: "email" },
+        query: {},
+        body: {
+          state: "completed",
+          cutoff: "2026-05-25T12:00:00.000Z",
+          confirm: "clean completed email",
+        },
+      }),
+    ).resolves.toMatchObject({
+      status: 409,
+      body: { error: { code: "QUEUE_CLEAN_DELETE_DISABLED" } },
+    });
+    expect(cleanQueue).not.toHaveBeenCalled();
+  });
+
+  it("invokes core.cleanQueue for queue clean delete", async () => {
+    const cleanQueue = vi.fn().mockResolvedValue({
+      queue: "email",
+      state: "completed",
+      cutoff: "2026-05-25T12:00:00.000Z",
+      deleted: 1,
+      deletedIds: ["job-1"],
+      hasMore: false,
+    });
+    const repositoryCleanQueue = vi.fn();
+    const route = buildRouteTable(
+      fakeCore(
+        vi.fn(),
+        { cleanQueue: repositoryCleanQueue },
+        { ensureQueueCleanDeleteAvailable: vi.fn(), cleanQueue },
+      ) as never,
+    ).find(
+      (candidate) =>
+        candidate.method === "post" && candidate.path === "/queues/:name/clean",
+    );
+
+    expect(route).toBeDefined();
+    assertRoute(route);
+
+    const result = await route.handler({
+      params: { name: "email" },
+      query: {},
+      body: {
+        state: "completed",
+        cutoff: "2026-05-25T12:00:00.000Z",
+        confirm: "clean completed email",
+      },
+    });
+
+    expect(result).toEqual({
+      status: 200,
+      body: {
+        ok: true,
+        result: {
+          queue: "email",
+          state: "completed",
+          cutoff: "2026-05-25T12:00:00.000Z",
+          deleted: 1,
+          deletedIds: ["job-1"],
+          hasMore: false,
+        },
+      },
+    });
+    expect(cleanQueue).toHaveBeenCalledWith("email", {
+      state: "completed",
+      cutoff: "2026-05-25T12:00:00.000Z",
+      confirm: "clean completed email",
+    });
+    expect(repositoryCleanQueue).not.toHaveBeenCalled();
+  });
+
+  it("cleans queue after guard validation", async () => {
+    const cleanQueue = vi.fn().mockResolvedValue({
+      queue: "email",
+      state: "completed",
+      cutoff: "2026-05-25T12:00:00.000Z",
+      deleted: 2,
+      deletedIds: ["a", "b"],
+      hasMore: false,
+    });
+    const ensureQueueCleanDeleteAvailable = vi.fn();
+    const route = buildRouteTable(
+      fakeCore(
+        vi.fn(),
+        {},
+        { ensureQueueCleanDeleteAvailable, cleanQueue },
+      ) as never,
+    ).find(
+      (candidate) =>
+        candidate.method === "post" && candidate.path === "/queues/:name/clean",
+    );
+    expect(route).toBeDefined();
+    assertRoute(route);
+    const result = await route.handler({
+      params: { name: "email" },
+      query: {},
+      body: {
+        state: "completed",
+        cutoff: "2026-05-25T12:00:00.000Z",
+        confirm: "clean completed email",
+        limit: 10,
+      },
+    });
+    expect(ensureQueueCleanDeleteAvailable).toHaveBeenCalledWith();
+    expect(cleanQueue).toHaveBeenCalledWith("email", {
+      state: "completed",
+      cutoff: "2026-05-25T12:00:00.000Z",
+      confirm: "clean completed email",
+      limit: 10,
+    });
+    expect(result).toEqual({
+      status: 200,
+      body: {
+        ok: true,
+        result: {
+          queue: "email",
+          state: "completed",
+          cutoff: "2026-05-25T12:00:00.000Z",
+          deleted: 2,
+          deletedIds: ["a", "b"],
+          hasMore: false,
+        },
+      },
+    });
+  });
+
   it("bulk retry succeeds for existing jobs and reports per-job results", async () => {
     const getJob = vi.fn(async (id: string) =>
       id === "job-2" ? null : { id, name: `queue-${id}` },
@@ -718,6 +1039,8 @@ function fakeCore(
 ) {
   return {
     getConfig: vi.fn(() => ({})),
+    cleanQueue:
+      (actionOverrides.cleanQueue as ReturnType<typeof vi.fn>) ?? vi.fn(),
     repository: {
       getOverview: vi.fn(async () => ({})),
       listQueues: vi.fn(async () => []),
@@ -747,11 +1070,13 @@ function fakeCore(
         total: 0,
       })),
       previewQueueClean: vi.fn(),
+      cleanQueue: vi.fn(),
       ...repositoryOverrides,
     },
     actions: {
       ensureAvailable: vi.fn(),
       ensureQueueCleanAvailable: vi.fn(),
+      ensureQueueCleanDeleteAvailable: vi.fn(),
       retryJob: vi.fn(),
       cancelJob: vi.fn(),
       resumeJob: vi.fn(),

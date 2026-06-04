@@ -48,6 +48,57 @@ describe("actions", () => {
       expect(error).toMatchObject({ code: "QUEUE_CLEAN_DISABLED" });
     }
   });
+  it("blocks queue clean delete when preview is disabled", async () => {
+    const s = new PgBossActionService({} as unknown as PgBoss, false, {
+      allowQueueClean: false,
+      allowQueueCleanDelete: true,
+    });
+
+    expect(() => s.ensureQueueCleanDeleteAvailable()).toThrowError(
+      expect.objectContaining({ code: "QUEUE_CLEAN_DISABLED" }),
+    );
+  });
+
+  it("blocks queue clean delete when readonly", () => {
+    const s = new PgBossActionService({} as unknown as PgBoss, true, {
+      allowQueueClean: true,
+      allowQueueCleanDelete: true,
+    });
+
+    expect(() => s.ensureQueueCleanDeleteAvailable()).toThrowError(
+      expect.objectContaining({
+        code: "READONLY_MODE",
+        message: "Read-only mode enabled",
+      }),
+    );
+  });
+
+  it("blocks queue clean delete when boss is missing", () => {
+    const s = new PgBossActionService(undefined, false, {
+      allowQueueClean: true,
+      allowQueueCleanDelete: true,
+    });
+
+    expect(() => s.ensureQueueCleanDeleteAvailable()).toThrowError(
+      expect.objectContaining({
+        code: "BOSS_INSTANCE_REQUIRED",
+        message: "pg-boss instance required for mutations",
+      }),
+    );
+  });
+
+  it("blocks queue clean delete when destructive flag is disabled", async () => {
+    const s = new PgBossActionService({} as unknown as PgBoss, false, {
+      allowQueueClean: true,
+      allowQueueCleanDelete: false,
+    });
+
+    expect(() => s.ensureQueueCleanDeleteAvailable()).toThrowError(
+      expect.objectContaining({
+        code: "QUEUE_CLEAN_DELETE_DISABLED",
+      }),
+    );
+  });
   it("calls pg-boss job methods with queue name and id", async () => {
     const boss = {
       retry: vi.fn(),

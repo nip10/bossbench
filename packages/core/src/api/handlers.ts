@@ -3,6 +3,7 @@ import type {
   BossbenchJobState,
   BulkJobActionResult,
   QueryFilters,
+  QueueCleanDeleteRequest,
   QueueCleanPreviewRequest,
 } from "../core/types";
 
@@ -178,6 +179,21 @@ export function buildRouteTable(core: BossbenchCore): RouteDef[] {
           const request = validateQueueCleanPreviewBody(body);
           actions.ensureQueueCleanAvailable();
           return repository.previewQueueClean(name, request);
+        }),
+    },
+    {
+      method: "post",
+      path: "/queues/:name/clean",
+      handler: async ({ params, body }) =>
+        mutate(async () => {
+          const name = required(
+            params.name,
+            "QUEUE_NOT_FOUND",
+            "Queue not found",
+          );
+          const request = validateQueueCleanDeleteBody(body, name);
+          actions.ensureQueueCleanDeleteAvailable();
+          return core.cleanQueue(name, request);
         }),
     },
     {
@@ -550,7 +566,8 @@ function mutationStatus(code: string): number {
     code === "READONLY_MODE" ||
     code === "BOSS_INSTANCE_REQUIRED" ||
     code === "MANUAL_ENQUEUE_DISABLED" ||
-    code === "QUEUE_CLEAN_DISABLED"
+    code === "QUEUE_CLEAN_DISABLED" ||
+    code === "QUEUE_CLEAN_DELETE_DISABLED"
   )
     return 409;
   return 400;
@@ -564,6 +581,8 @@ function mutationMessage(error: unknown, code: string): string {
     return errorMessage(error) ?? "Action failed";
   if (code === "MANUAL_ENQUEUE_DISABLED") return "Manual enqueue is disabled";
   if (code === "QUEUE_CLEAN_DISABLED") return "Queue clean preview is disabled";
+  if (code === "QUEUE_CLEAN_DELETE_DISABLED")
+    return "Queue clean delete is disabled";
   return "Action failed";
 }
 
@@ -632,6 +651,47 @@ function validateQueueCleanPreviewBody(
   };
 }
 
+function validateQueueCleanDeleteBody(
+  body: unknown,
+  queue: string,
+): QueueCleanDeleteRequest {
+  if (!body || typeof body !== "object" || Array.isArray(body))
+    throw errorWithCode("INVALID_FILTER", "Invalid queue clean delete body");
+  const candidate = body as {
+    state?: unknown;
+    cutoff?: unknown;
+    limit?: unknown;
+    confirm?: unknown;
+  };
+  const state = toStringOrEmpty(candidate.state);
+  if (state !== "completed" && state !== "failed")
+    throw errorWithCode("INVALID_FILTER", "Invalid queue clean state");
+  const cutoff = parseStrictIsoUtcTimestamp(candidate.cutoff);
+  const cutoffDate = Date.parse(cutoff);
+  if (Date.now() - cutoffDate < 3600_000)
+    throw errorWithCode(
+      "INVALID_FILTER",
+      "cutoff must be at least 3600 seconds old",
+    );
+  const limit =
+    candidate.limit === undefined
+      ? undefined
+      : toPositiveInteger(candidate.limit);
+  if (candidate.limit !== undefined && limit === undefined)
+    throw errorWithCode("INVALID_FILTER", "limit must be a positive integer");
+  if (limit !== undefined && limit > 5000)
+    throw errorWithCode("INVALID_FILTER", "limit must be at most 5000");
+  const confirm = toStringOrEmpty(candidate.confirm);
+  if (confirm !== `clean ${state} ${queue}`)
+    throw errorWithCode("INVALID_FILTER", "Invalid confirmation");
+  return {
+    state: state as QueueCleanDeleteRequest["state"],
+    cutoff,
+    confirm,
+    ...(limit !== undefined ? { limit } : {}),
+  };
+}
+
 function validateEnqueueBody(body: unknown): {
   data: Record<string, unknown> | null;
   options?: { priority?: number; startAfter?: string | number };
@@ -684,4 +744,16 @@ function normalizeStartAfter(value: unknown): string | number {
     if (Number.isFinite(timestamp)) return new Date(timestamp).toISOString();
   }
   throw errorWithCode("INVALID_FILTER", "Invalid enqueue body");
+}
+
+function parseStrictIsoUtcTimestamp(value: unknown): string {
+  if (typeof value !== "string")
+    throw errorWithCode("INVALID_FILTER", "Invalid cutoff");
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp))
+    throw errorWithCode("INVALID_FILTER", "Invalid cutoff");
+  const normalized = new Date(timestamp).toISOString();
+  if (normalized !== value)
+    throw errorWithCode("INVALID_FILTER", "Invalid cutoff");
+  return value;
 }

@@ -18,11 +18,11 @@ This document tracks Bossbench parity with upstream Workbench. Bossbench is pg-b
 
 ## Current summary
 
-Bossbench is now strong in job operations, job detail, future-job exploration, schedule actions, manual enqueue/requeue, metrics, adapters, CLI, MCP, examples, AI-search metadata, package/docs discoverability, and package release readiness. Current follow-up work now also includes alerting, docs, and marketing/discoverability parity alongside destructive queue clean follow-up, deeper command-center polish, and desktop.
+Bossbench is now strong in job operations, job detail, future-job exploration, schedule actions, manual enqueue/requeue, metrics, adapters, CLI, MCP, examples, AI-search metadata, package/docs discoverability, and package release readiness. Current follow-up work now also includes alerting, docs, and marketing/discoverability parity alongside adapted destructive queue clean behavior, deeper command-center polish, and desktop.
 
 Open parity issues:
 
-- [#59 pg-boss-safe queue clean semantics](https://github.com/nip10/bossbench/issues/59)
+- [#59 pg-boss-safe queue clean semantics](https://github.com/nip10/bossbench/issues/59) (preview + explicit destructive delete flags/audit/direct SQL safety)
 - [#71 Alerts dashboard and evaluation](https://github.com/nip10/bossbench/issues/71)
 - [#72 Alert delivery](https://github.com/nip10/bossbench/issues/72)
 - [#73 Slack/Discord alert formatting](https://github.com/nip10/bossbench/issues/73)
@@ -92,7 +92,7 @@ When auditing upstream again, compare from the `Last upstream audit` commit abov
 | Retry/remove/promote | Adapted | Bossbench supports retry/cancel/resume/delete. Promote has no pg-boss equivalent. | — |
 | Bulk retry/delete/promote | Adapted | Bossbench supports bulk retry/cancel/delete. Bulk promote is a non-goal. | — |
 | Queue pause/resume | Non-goal | pg-boss has no durable queue pause/resume equivalent. | — |
-| Queue clean | Adapted | Bossbench implements a safe read-only clean preview gated by `allowQueueClean`; destructive delete remains blocked on direct SQL policy/table resolution. | [#59](https://github.com/nip10/bossbench/issues/59) |
+| Queue clean | Implemented | Bossbench splits queue clean into preview (`allowQueueClean`) and destructive delete (`allowQueueCleanDelete`) with exact confirmation, audit events, batch limits, and direct SQL targeting pg-boss storage. | [#59](https://github.com/nip10/bossbench/issues/59) |
 | Alert evaluation and delivery | Planned | Workbench uses BullMQ `QueueEvents`; Bossbench should use pg-boss/Postgres polling, conservative dedupe/cooldown, and optional webhook delivery. | [#71](https://github.com/nip10/bossbench/issues/71), [#72](https://github.com/nip10/bossbench/issues/72), [#73](https://github.com/nip10/bossbench/issues/73) |
 | Search endpoint | Implemented | Bossbench `/search` delegates to SQL-backed job search. | — |
 | Tag values endpoint | Implemented | Bossbench exposes configured JSONB tag values. | — |
@@ -148,9 +148,8 @@ When auditing upstream again, compare from the `Last upstream audit` commit abov
 ## Remaining priority order
 
 1. Land alerting/docs/marketing follow-ups (#71–#75), starting with pg-boss-native alert evaluation, delivery, and docs/discoverability polish.
-2. Decide whether to add destructive queue clean after preview: direct SQL policy, queue table resolution, and whether an audit log is required.
-3. Deepen pg-boss job detail further: retry/error history and safe queue maintenance semantics.
-4. Continue dashboard command-center polish and desktop parity through [#14](https://github.com/nip10/bossbench/issues/14) and child issues [#29–#34](https://github.com/nip10/bossbench/issues?q=is%3Aissue%20state%3Aopen%20label%3Adesktop).
+2. Deepen pg-boss job detail further: retry/error history and safe queue maintenance semantics.
+3. Continue dashboard command-center polish and desktop parity through [#14](https://github.com/nip10/bossbench/issues/14) and child issues [#29–#34](https://github.com/nip10/bossbench/issues?q=is%3Aissue%20state%3Aopen%20label%3Adesktop).
 
 ## Maintenance rule
 
