@@ -283,7 +283,19 @@ export class BossbenchRepository {
          select
            (select count(*)::int from deleted) as "deleted",
            coalesce(array_agg(id order by id), '{}'::text[]) as "deletedIds",
-           (select count(*) from doomed) > $4 as "hasMore"
+           exists (
+              select 1
+              from ${this.q("job")} j
+              where j.name = $1
+                and j.state = $2
+                and j.completed_on is not null
+                and j.completed_on < $3::timestamptz
+                and not exists (
+                  select 1
+                  from doomed d
+                  where d.id = j.id
+                )
+            ) as "hasMore"
          from deleted`,
         [queue, request.state, request.cutoff, limit],
       ),

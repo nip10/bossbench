@@ -218,6 +218,9 @@ describe("BossbenchRepository.previewQueueClean", () => {
       "completed_on < $3::timestamptz",
     );
     expect(query.mock.calls[0]?.[0]).toContain("limit $4");
+    expect(query.mock.calls[0]?.[0]).toContain("exists (");
+    expect(query.mock.calls[0]?.[0]).toContain('from "bossbench"."job" j');
+    expect(query.mock.calls[0]?.[0]).not.toContain("count(*) from doomed");
     expect(query.mock.calls[0]?.[1]).toEqual([
       "email",
       "completed",
@@ -278,6 +281,9 @@ describe("BossbenchRepository.cleanQueue", () => {
       "order by j.completed_on asc, j.id asc",
     );
     expect(query.mock.calls[0]?.[0]).toContain("limit $4");
+    expect(query.mock.calls[0]?.[0]).toContain("exists (");
+    expect(query.mock.calls[0]?.[0]).toContain('from "bossbench"."job" j');
+    expect(query.mock.calls[0]?.[0]).not.toContain("count(*) from doomed");
     expect(query.mock.calls[0]?.[1]).toEqual([
       "email",
       "completed",
