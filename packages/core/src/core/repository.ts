@@ -13,6 +13,7 @@ import type {
   OverviewStats,
   PaginatedResponse,
   QueryFilters,
+  QueueCleanDeleteRequest,
   QueueCleanPreviewRequest,
   QueueCleanPreviewResult,
   QueueDetail,
@@ -248,6 +249,10 @@ export class BossbenchRepository {
       ),
     );
     return { items };
+  }
+
+  async cleanQueue(name: string, _request: QueueCleanDeleteRequest) {
+    throw new Error(`cleanQueue not implemented for ${name}`);
   }
 
   async getAlertEvaluationSnapshot(

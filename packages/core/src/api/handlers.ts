@@ -193,7 +193,7 @@ export function buildRouteTable(core: BossbenchCore): RouteDef[] {
           );
           const request = validateQueueCleanDeleteBody(body, name);
           actions.ensureQueueCleanDeleteAvailable();
-          return core.cleanQueue(name, request);
+          return repository.cleanQueue(name, request);
         }),
     },
     {
@@ -566,7 +566,8 @@ function mutationStatus(code: string): number {
     code === "READONLY_MODE" ||
     code === "BOSS_INSTANCE_REQUIRED" ||
     code === "MANUAL_ENQUEUE_DISABLED" ||
-    code === "QUEUE_CLEAN_DISABLED"
+    code === "QUEUE_CLEAN_DISABLED" ||
+    code === "QUEUE_CLEAN_DELETE_DISABLED"
   )
     return 409;
   return 400;

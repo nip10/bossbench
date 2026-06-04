@@ -454,6 +454,44 @@ describe("route table /jobs parsing", () => {
     expect(cleanQueue).not.toHaveBeenCalled();
   });
 
+  it("returns a 409 when queue clean delete is disabled", async () => {
+    const ensureQueueCleanDeleteAvailable = vi.fn(() => {
+      throw Object.assign(new Error("Queue clean delete is disabled"), {
+        code: "QUEUE_CLEAN_DELETE_DISABLED",
+      });
+    });
+    const cleanQueue = vi.fn();
+    const route = buildRouteTable(
+      fakeCore(
+        vi.fn(),
+        { cleanQueue },
+        { ensureQueueCleanDeleteAvailable },
+      ) as never,
+    ).find(
+      (candidate) =>
+        candidate.method === "post" && candidate.path === "/queues/:name/clean",
+    );
+
+    expect(route).toBeDefined();
+    assertRoute(route);
+
+    await expect(
+      route.handler({
+        params: { name: "email" },
+        query: {},
+        body: {
+          state: "completed",
+          cutoff: "2026-05-25T12:00:00.000Z",
+          confirm: "clean completed email",
+        },
+      }),
+    ).resolves.toMatchObject({
+      status: 409,
+      body: { error: { code: "QUEUE_CLEAN_DELETE_DISABLED" } },
+    });
+    expect(cleanQueue).not.toHaveBeenCalled();
+  });
+
   it("cleans queue after guard validation", async () => {
     const cleanQueue = vi.fn().mockResolvedValue({
       queue: "email",
@@ -467,11 +505,8 @@ describe("route table /jobs parsing", () => {
     const route = buildRouteTable(
       fakeCore(
         vi.fn(),
-        {},
-        {
-          cleanQueue,
-          ensureQueueCleanDeleteAvailable,
-        },
+        { cleanQueue },
+        { ensureQueueCleanDeleteAvailable },
       ) as never,
     ).find(
       (candidate) =>
@@ -963,6 +998,7 @@ function fakeCore(
         total: 0,
       })),
       previewQueueClean: vi.fn(),
+      cleanQueue: vi.fn(),
       ...repositoryOverrides,
     },
     actions: {
