@@ -1,5 +1,6 @@
 import type {
   ActivityPoint,
+  BossbenchAlertsResponse,
   BossbenchJobState,
   BulkJobActionResult,
   CloneJobResult,
@@ -53,6 +54,7 @@ export const api = {
       tags?: string[];
     }>("/config"),
   overview: () => fetchJson<OverviewStats>("/overview"),
+  alerts: () => fetchJson<BossbenchAlertsResponse>("/alerts"),
   queues: () => fetchJson<QueueInfo[]>("/queues"),
   queue: (name: string) =>
     fetchJson<QueueDetail>(`/queues/${encodeURIComponent(name)}`),

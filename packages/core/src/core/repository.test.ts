@@ -78,10 +78,121 @@ describe("BossbenchRepository job summaries", () => {
   });
 });
 
+describe("BossbenchRepository alert snapshots", () => {
+  it("combines overview, metrics, warnings, and oldest created ages", async () => {
+    const repository = new BossbenchRepository(
+      { query: vi.fn() } as never,
+      "bossbench",
+      [],
+    );
+    const overview = {
+      totals: {
+        created: 0,
+        retry: 0,
+        active: 0,
+        completed: 0,
+        cancelled: 0,
+        failed: 0,
+      },
+      queues: [],
+      deadLetter: 0,
+      warnings: 0,
+    };
+    const metrics = {
+      summary: {
+        totalCreated: 0,
+        totalCompleted: 0,
+        totalFailed: 0,
+        totalRetry: 0,
+        throughputPerHour: 0,
+        errorRate: 0,
+        avgDurationMs: null,
+        avgWaitMs: null,
+      },
+      buckets: [],
+      queues: [],
+    };
+    const warnings = { items: [], page: 1, pageSize: 200, total: 0 };
+
+    repository.getOverview = vi.fn(async () => overview);
+    repository.getMetrics = vi.fn(async () => metrics);
+    repository.getWarnings = vi.fn(async () => warnings);
+    (
+      repository as unknown as {
+        getOldestCreatedAges: () => Promise<Record<string, number>>;
+      }
+    ).getOldestCreatedAges = vi.fn(async () => ({ email: 90 }));
+
+    const result = await (
+      repository as unknown as {
+        getAlertEvaluationSnapshot: () => Promise<unknown>;
+      }
+    ).getAlertEvaluationSnapshot();
+
+    expect(result).toEqual({
+      overview,
+      metrics,
+      warnings,
+      oldestCreatedAges: { email: 90 },
+    });
+  });
+
+  it("builds oldest-created-age queries for created and retry jobs", async () => {
+    const query = vi.fn().mockResolvedValueOnce({
+      rows: [
+        { name: "email", ageSeconds: 90 },
+        { name: "billing", ageSeconds: 45 },
+      ],
+    });
+    const repository = new BossbenchRepository(
+      { query } as never,
+      "bossbench",
+      [],
+    );
+
+    const result = await (
+      repository as unknown as {
+        getOldestCreatedAges: () => Promise<Record<string, number>>;
+      }
+    ).getOldestCreatedAges();
+
+    expect(query.mock.calls[0]?.[0]).toContain("state in ('created','retry')");
+    expect(query.mock.calls[0]?.[0]).toContain("group by name");
+    expect(result).toEqual({ email: 90, billing: 45 });
+  });
+
+  it("evaluates windowed alert rule values without loading the full snapshot", async () => {
+    const query = vi.fn().mockResolvedValueOnce({ rows: [{ value: 4 }] });
+    const repository = new BossbenchRepository(
+      { query } as never,
+      "bossbench",
+      [],
+    );
+
+    const result = await repository.getAlertEvaluationSnapshot([
+      {
+        id: "recent-failed",
+        name: "Recent failures",
+        type: "failed_count",
+        queue: "email",
+        windowMinutes: 15,
+        threshold: 3,
+      },
+    ]);
+
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(query.mock.calls[0]?.[0]).toContain("completed_on >= now() -");
+    expect(query.mock.calls[0]?.[0]).toContain("name = $2");
+    expect(query.mock.calls[0]?.[1]).toEqual([15, "email"]);
+    expect(result.ruleValues).toEqual({ "recent-failed": 4 });
+  });
+});
+
 describe("BossbenchRepository.previewQueueClean", () => {
   it("builds a preview query for completed and failed jobs older than the cutoff", async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-05-29T12:00:00.000Z"));
+    const dateNow = vi
+      .spyOn(Date, "now")
+      .mockReturnValue(new Date("2026-05-29T12:00:00.000Z").getTime());
     const query = vi.fn().mockResolvedValueOnce({
       rows: [
         {
@@ -122,6 +233,6 @@ describe("BossbenchRepository.previewQueueClean", () => {
       hasMore: true,
       cutoff: "2026-05-29T10:00:00.000Z",
     });
-    vi.useRealTimers();
+    dateNow.mockRestore();
   });
 });

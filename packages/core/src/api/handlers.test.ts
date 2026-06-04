@@ -2,6 +2,32 @@ import { describe, expect, it, vi } from "vitest";
 import { buildRouteTable } from "./handlers";
 
 describe("route table /jobs parsing", () => {
+  it("returns alert state", async () => {
+    const alerts = {
+      enabled: false,
+      rules: [],
+      contactPoints: [],
+      violations: [],
+      delivery: { enabled: false, available: false },
+    };
+    const getAlerts = vi.fn().mockResolvedValue(alerts);
+    const route = buildRouteTable({
+      ...fakeCore(vi.fn()),
+      getAlerts,
+    } as never).find(
+      (candidate) => candidate.method === "get" && candidate.path === "/alerts",
+    );
+
+    expect(route).toBeDefined();
+    assertRoute(route);
+
+    await expect(route.handler({ params: {}, query: {} })).resolves.toEqual({
+      status: 200,
+      body: alerts,
+    });
+    expect(getAlerts).toHaveBeenCalledWith();
+  });
+
   it("passes advanced job filters to repository.listJobs", async () => {
     const listJobs = vi.fn().mockResolvedValue({
       items: [],

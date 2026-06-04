@@ -32,6 +32,7 @@ export function normalizeJobsFilters(filters?: QueryFilters) {
 export const queryKeys = {
   config: ["config"] as const,
   overview: ["overview"] as const,
+  alerts: ["alerts"] as const,
   queues: ["queues"] as const,
   queue: (name: string) => ["queue", name] as const,
   jobs: (filters?: QueryFilters) =>
@@ -71,6 +72,12 @@ export const useOverview = () =>
     queryKey: queryKeys.overview,
     queryFn: api.overview,
     refetchInterval: 10_000,
+  });
+export const useAlerts = () =>
+  useQuery({
+    queryKey: queryKeys.alerts,
+    queryFn: api.alerts,
+    refetchInterval: 30_000,
   });
 export const useQueues = () =>
   useQuery({

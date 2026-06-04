@@ -61,9 +61,9 @@ export default function Page() {
       />
 
       <Section
-        eyebrow="Metrics"
-        title="Throughput and activity without the noise."
-        body="Watch completed, failed, and retry buckets over time, with the same calm dashboard feel Workbench is known for."
+        eyebrow="Metrics & alerts"
+        title="Throughput, activity, and alert signals without the noise."
+        body="Watch completed, failed, and retry buckets over time, then turn pg-boss conditions into config-driven webhook, Slack, or Discord alerts."
         align="right"
         mockup={<MetricsMockup />}
       />
@@ -104,8 +104,9 @@ function Hero() {
         </h1>
         <p className="hero-body">
           Inspect SQL-backed reads, explore queue health, and trigger pg-boss
-          actions from a single embedded view. Built for Hono, Express, Fastify,
-          Elysia, NestJS, and Next.js.
+          actions from a single embedded view. Built for Hono, h3/Nitro, Nuxt,
+          AdonisJS, TanStack Start, Express, Fastify, Elysia, NestJS, and
+          Next.js.
         </p>
 
         <div className="hero-actions">
@@ -179,7 +180,8 @@ function DualFeature() {
         <h3>Reads stay in Postgres.</h3>
         <p>
           Bossbench queries your pg-boss schema for queues, jobs, schedules,
-          warnings, metrics, and activity without changing the API shape.
+          warnings, metrics, activity, and alerts without changing the API
+          shape.
         </p>
       </div>
       <div className="feature-card">
@@ -187,7 +189,8 @@ function DualFeature() {
         <h3>Actions stay with pg-boss.</h3>
         <p>
           Keep retries, cancellations, and scheduler actions in the same host
-          process that already runs your queue engine.
+          process that already runs your queue engine, with alert delivery kept
+          server-side and opt-in.
         </p>
       </div>
     </section>

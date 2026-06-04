@@ -1,8 +1,8 @@
 # Workbench parity tracker
 
-Last updated: 2026-05-29
+Last updated: 2026-06-04
 
-Last upstream audit: 2026-05-29, [`pontusab/workbench@4937b37`](https://github.com/pontusab/workbench/commit/4937b37) after previously checked [`e4bab1d`](https://github.com/pontusab/workbench/commit/e4bab1d).
+Last upstream audit: 2026-06-04, [`pontusab/workbench@aefd22c`](https://github.com/pontusab/workbench/commit/aefd22c11cbebc26c619df201641995e661af624) after previously checked [`4937b37`](https://github.com/pontusab/workbench/commit/4937b37).
 
 This document tracks Bossbench parity with upstream Workbench. Bossbench is pg-boss/Postgres-native, so parity does **not** mean copying BullMQ-only behavior. Every Workbench capability should be classified as implemented, adapted to pg-boss, planned, or intentionally unsupported.
 
@@ -18,11 +18,16 @@ This document tracks Bossbench parity with upstream Workbench. Bossbench is pg-b
 
 ## Current summary
 
-Bossbench is now strong in job operations, job detail, future-job exploration, schedule actions, manual enqueue/requeue, metrics, adapters, CLI, MCP, examples, AI-search metadata, package/docs discoverability, and package release readiness. The largest remaining parity gaps versus current Workbench are destructive queue clean follow-up, deeper command-center polish, and desktop.
+Bossbench is now strong in job operations, job detail, future-job exploration, schedule actions, manual enqueue/requeue, metrics, adapters, CLI, MCP, examples, AI-search metadata, package/docs discoverability, and package release readiness. Current follow-up work now also includes alerting, docs, and marketing/discoverability parity alongside destructive queue clean follow-up, deeper command-center polish, and desktop.
 
 Open parity issues:
 
 - [#59 pg-boss-safe queue clean semantics](https://github.com/nip10/bossbench/issues/59)
+- [#71 Alerts dashboard and evaluation](https://github.com/nip10/bossbench/issues/71)
+- [#72 Alert delivery](https://github.com/nip10/bossbench/issues/72)
+- [#73 Slack/Discord alert formatting](https://github.com/nip10/bossbench/issues/73)
+- [#74 Docs expansion](https://github.com/nip10/bossbench/issues/74)
+- [#75 Marketing/discoverability cleanup](https://github.com/nip10/bossbench/issues/75)
 - [#14 Desktop parity](https://github.com/nip10/bossbench/issues/14)
 - [#29 Desktop scaffold and onboarding](https://github.com/nip10/bossbench/issues/29)
 - [#30 Desktop secure connection profile storage](https://github.com/nip10/bossbench/issues/30)
@@ -39,6 +44,7 @@ Open parity issues:
 | 2026-05-27 | [`237beaf..45f19ff`](https://github.com/pontusab/workbench/compare/237beaf...45f19ff) | Workbench 0.5.2 added a BullMQ job logs tab, app icon branding/static asset plumbing, queue popover scrolling, and dashboard/container layout fixes. | Ported container-safe shell height, scrollable queue shortcuts, and embedded app-icon plumbing. Tracked pg-boss-native timeline/events design separately in #53 because BullMQ `job.log()` does not map directly to pg-boss. |
 | 2026-05-27 | [`45f19ff..e4bab1d`](https://github.com/pontusab/workbench/compare/45f19ff...e4bab1d) | Workbench 0.6.0 made Overview the command-center home with KPI cards, 24h throughput, attention alerts, queue health cards, collapsible sidebar, queue clean UI, failed-run reasons, and live cues. Workbench 0.7.0 added AdonisJS and TanStack Start adapters/examples/CLI scaffolds/site content. Current main also adds a standalone Bun Docker image and GHCR image workflow plus Docker marketing/docs. | Bossbench already has Overview as home, SQL-backed health signals, queue metrics, read-only MCP, and scrollable queue shortcuts, but lacks collapsible expanded sidebar, live cues, failed reason snippets, queue clean semantics, Adonis/TanStack Start adapters, and standalone Docker deployment. |
 | 2026-05-29 | [`e4bab1d..4937b37`](https://github.com/pontusab/workbench/compare/e4bab1d...4937b37) | Workbench 0.7.1 improved bull-board alternative discoverability across npm/GitHub/site/package READMEs and polished `CopyCommand` overflow/scroll layout. | Completed Bossbench package metadata/README discoverability polish, root/package consistency updates, and copy-command overflow styling. |
+| 2026-06-04 | [`4937b37..aefd22c`](https://github.com/pontusab/workbench/compare/4937b37...aefd22c11cbebc26c619df201641995e661af624) | Workbench 0.8.0 added self-hosted alerting with Slack and webhook destinations, then 0.9.1 added Discord as an official alert channel. The web app also gained a structured docs hub with setup, framework, deployment, and alerting docs plus minor marketing cleanup. | Opened Bossbench follow-ups for pg-boss-native alert evaluation and Alerts UI (#71), alert delivery (#72), Slack/Discord formatting (#73), docs expansion (#74), and marketing/discoverability cleanup (#75). Bossbench will adapt alerting through SQL-backed pg-boss evaluation rather than BullMQ `QueueEvents`. |
 
 When auditing upstream again, compare from the `Last upstream audit` commit above to `pontusab/workbench@main`, then append one row here and update the audit line.
 
@@ -53,6 +59,7 @@ When auditing upstream again, compare from the `Last upstream audit` commit abov
 | Dark UI/theme toggle | Implemented | Bossbench supports dark/light dashboard theme. | — |
 | Overview command center | Adapted | Bossbench uses Overview as home and now adds attention signals plus a live sync cue on top of queue/job/dead-letter/warning summaries, metrics-driven throughput, wait/duration, slowest queues, and failing queues. Workbench remains richer for worker/paused-queue health, per-queue cards, and deeper live cues. | [#58](https://github.com/nip10/bossbench/issues/58) |
 | Queue overview cards/grid | Adapted | Bossbench has queue table and detail pages; Workbench queue cards are visually richer. | [#9](https://github.com/nip10/bossbench/issues/9) |
+| Alerts dashboard | Planned | Workbench now has alert rules, contact points, and delivery history. Bossbench should add a pg-boss-native Alerts page that starts with configured rules and current SQL-backed violations before delivery. | [#71](https://github.com/nip10/bossbench/issues/71) |
 | Jobs/runs list | Implemented | Bossbench supports search, queue/state/date/tag filters, sorting, pagination, and bulk actions. | — |
 | Bulk job actions | Adapted | Bossbench supports bulk retry/cancel/delete. Bulk promote is a BullMQ-only non-goal. | — |
 | Job detail tabs | Adapted | Bossbench has summary, payload, output, timeline, raw tabs plus copy/export. Workbench also has BullMQ-specific logs/error detail that Bossbench adapts through pg-boss data. | [#12](https://github.com/nip10/bossbench/issues/12) |
@@ -86,6 +93,7 @@ When auditing upstream again, compare from the `Last upstream audit` commit abov
 | Bulk retry/delete/promote | Adapted | Bossbench supports bulk retry/cancel/delete. Bulk promote is a non-goal. | — |
 | Queue pause/resume | Non-goal | pg-boss has no durable queue pause/resume equivalent. | — |
 | Queue clean | Adapted | Bossbench implements a safe read-only clean preview gated by `allowQueueClean`; destructive delete remains blocked on direct SQL policy/table resolution. | [#59](https://github.com/nip10/bossbench/issues/59) |
+| Alert evaluation and delivery | Planned | Workbench uses BullMQ `QueueEvents`; Bossbench should use pg-boss/Postgres polling, conservative dedupe/cooldown, and optional webhook delivery. | [#71](https://github.com/nip10/bossbench/issues/71), [#72](https://github.com/nip10/bossbench/issues/72), [#73](https://github.com/nip10/bossbench/issues/73) |
 | Search endpoint | Implemented | Bossbench `/search` delegates to SQL-backed job search. | — |
 | Tag values endpoint | Implemented | Bossbench exposes configured JSONB tag values. | — |
 | Metrics API | Adapted | Bossbench metrics are SQL-backed with summary, buckets, and queue health. Workbench's slowest/failing job-type metrics are adapted to pg-boss queue health. | [#11](https://github.com/nip10/bossbench/issues/11) |
@@ -129,7 +137,7 @@ When auditing upstream again, compare from the `Last upstream audit` commit abov
 | CLI initializer | Adapted | Bossbench CLI detects supported frameworks and injects pg-boss/Postgres setup. Docs can be clearer. | [#13](https://github.com/nip10/bossbench/issues/13) |
 | Framework examples | Implemented | Bossbench has `with-*` examples plus a seeded demo. | — |
 | Standalone Docker deployment | Implemented | Bossbench now ships `apps/standalone` for connecting to an external pg-boss/Postgres database with read-only-first defaults and a Dockerfile. | [#56](https://github.com/nip10/bossbench/issues/56) |
-| Marketing/docs site | Adapted | Bossbench has Workbench-style marketing site adapted to pg-boss plus `llms.txt`, AI-search robots policy, sitemap, JSON-LD, app-icon metadata, package discoverability metadata, expanded core README docs, and copy-command overflow polish. | [#68](https://github.com/nip10/bossbench/issues/68) |
+| Marketing/docs site | Adapted | Bossbench has Workbench-style marketing site adapted to pg-boss plus `llms.txt`, AI-search robots policy, sitemap, JSON-LD, app-icon metadata, package discoverability metadata, expanded core README docs, copy-command overflow polish, and structured docs expansion tracked in #74/#75. | [#68](https://github.com/nip10/bossbench/issues/68), [#74](https://github.com/nip10/bossbench/issues/74), [#75](https://github.com/nip10/bossbench/issues/75) |
 | Smoke tests | Implemented | Bossbench smoke covers package entrypoints and optional demo checks. | — |
 | CI | Implemented | Bossbench runs lint, commitlint, typecheck, tests, integration, build, and smoke. | — |
 | npm release workflow | Implemented | Bossbench uses Changesets release workflow. | — |
@@ -139,10 +147,10 @@ When auditing upstream again, compare from the `Last upstream audit` commit abov
 
 ## Remaining priority order
 
-1. Decide whether to add destructive queue clean after preview: direct SQL policy, queue table resolution, and whether an audit log is required.
-2. Deepen pg-boss job detail further: retry/error history and safe queue maintenance semantics.
-3. Continue dashboard command-center polish: richer attention alerts, live cues, and optional collapsible sidebar behavior.
-4. Continue desktop parity through [#14](https://github.com/nip10/bossbench/issues/14) and child issues [#29–#34](https://github.com/nip10/bossbench/issues?q=is%3Aissue%20state%3Aopen%20label%3Adesktop).
+1. Land alerting/docs/marketing follow-ups (#71–#75), starting with pg-boss-native alert evaluation, delivery, and docs/discoverability polish.
+2. Decide whether to add destructive queue clean after preview: direct SQL policy, queue table resolution, and whether an audit log is required.
+3. Deepen pg-boss job detail further: retry/error history and safe queue maintenance semantics.
+4. Continue dashboard command-center polish and desktop parity through [#14](https://github.com/nip10/bossbench/issues/14) and child issues [#29–#34](https://github.com/nip10/bossbench/issues?q=is%3Aissue%20state%3Aopen%20label%3Adesktop).
 
 ## Maintenance rule
 

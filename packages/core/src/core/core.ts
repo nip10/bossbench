@@ -1,7 +1,12 @@
 import { PgBossActionService } from "./actions";
+import { evaluateAlertRules, maskContactPoints } from "./alerts";
 import { normalizeOptions } from "./options";
 import { BossbenchRepository } from "./repository";
-import type { BossbenchOptions, NormalizedBossbenchOptions } from "./types";
+import type {
+  BossbenchAlertsResponse,
+  BossbenchOptions,
+  NormalizedBossbenchOptions,
+} from "./types";
 
 export class BossbenchCore {
   constructor(
@@ -34,6 +39,26 @@ export class BossbenchCore {
       hasBoss: !!this.options.boss,
       allowManualEnqueue: this.options.allowManualEnqueue,
       allowQueueClean: this.options.allowQueueClean,
+      alerts: {
+        enabled: this.options.alerts.enabled,
+        ruleCount: this.options.alerts.rules.length,
+        contactPointCount: this.options.alerts.contactPoints.length,
+      },
+    };
+  }
+  async getAlerts(): Promise<BossbenchAlertsResponse> {
+    const alerts = this.options.alerts;
+    const snapshot =
+      alerts.enabled && alerts.rules.length > 0
+        ? await this.repository.getAlertEvaluationSnapshot(alerts.rules)
+        : null;
+
+    return {
+      enabled: alerts.enabled,
+      rules: alerts.rules,
+      contactPoints: maskContactPoints(alerts.contactPoints),
+      violations: snapshot ? evaluateAlertRules(alerts.rules, snapshot) : [],
+      delivery: { enabled: false, available: false },
     };
   }
   requiresAuth() {

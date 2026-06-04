@@ -3,6 +3,8 @@ import { withDb } from "./db";
 import { quoteQualifiedIdentifier } from "./identifiers";
 import type {
   ActivityPoint,
+  AlertEvaluationSnapshot,
+  BossbenchAlertRule,
   BossbenchJobState,
   JobDetail,
   JobSummary,
@@ -247,6 +249,140 @@ export class BossbenchRepository {
     );
     return { items };
   }
+
+  async getAlertEvaluationSnapshot(
+    rules?: BossbenchAlertRule[],
+  ): Promise<AlertEvaluationSnapshot> {
+    if (rules?.length) {
+      const ruleValues = await this.getAlertRuleValues(rules);
+      return emptyAlertEvaluationSnapshot(ruleValues);
+    }
+
+    const [overview, metrics, warnings, oldestCreatedAges] = await Promise.all([
+      this.getOverview(),
+      this.getMetrics(),
+      this.getWarnings(),
+      this.getOldestCreatedAges(),
+    ]);
+
+    return { overview, metrics, warnings, oldestCreatedAges };
+  }
+
+  async getAlertRuleValues(
+    rules: BossbenchAlertRule[],
+  ): Promise<Record<string, number>> {
+    const entries = await Promise.all(
+      rules.map(async (rule) => [rule.id, await this.getAlertRuleValue(rule)]),
+    );
+    return Object.fromEntries(entries);
+  }
+
+  private async getAlertRuleValue(rule: BossbenchAlertRule): Promise<number> {
+    const scope = (windowColumn?: string, includeQueue = true) => {
+      const args: unknown[] = [];
+      const clauses: string[] = [];
+      if (windowColumn && rule.windowMinutes !== undefined) {
+        args.push(rule.windowMinutes);
+        clauses.push(
+          `${windowColumn} >= now() - ($${args.length}::int * interval '1 minute')`,
+        );
+      }
+      if (includeQueue && rule.queue) {
+        args.push(rule.queue);
+        clauses.push(`name = $${args.length}`);
+      }
+      return {
+        suffix: clauses.length ? ` and ${clauses.join(" and ")}` : "",
+        args,
+      };
+    };
+
+    if (rule.type === "failed_count" || rule.type === "dead_letter_count") {
+      const { suffix, args } = scope("completed_on");
+      const rows = await this.withClient((c) =>
+        this.safeQuery<{ value: number }>(
+          c,
+          `select count(*)::int as value from ${this.q("job")} where state='failed'${suffix}`,
+          args,
+        ),
+      );
+      return numberOrDefault(rows[0]?.value, 0);
+    }
+
+    if (rule.type === "retry_backlog_count") {
+      const { suffix, args } = scope("created_on");
+      const rows = await this.withClient((c) =>
+        this.safeQuery<{ value: number }>(
+          c,
+          `select count(*)::int as value from ${this.q("job")} where state='retry'${suffix}`,
+          args,
+        ),
+      );
+      return numberOrDefault(rows[0]?.value, 0);
+    }
+
+    if (rule.type === "warning_count") {
+      const { suffix, args } = scope("created_on", false);
+      const rows = await this.safeOptionalQuery<{ value: number }>(
+        "warning",
+        `select count(*)::int as value from ${this.q("warning")} where true${suffix}`,
+        args,
+      );
+      return numberOrDefault(rows[0]?.value, 0);
+    }
+
+    if (rule.type === "avg_wait_ms") {
+      const { suffix, args } = scope("created_on");
+      const rows = await this.withClient((c) =>
+        this.safeQuery<{ value: number | null }>(
+          c,
+          `select avg(extract(epoch from started_on - created_on) * 1000)::float8 as value from ${this.q("job")} where started_on is not null and created_on is not null${suffix}`,
+          args,
+        ),
+      );
+      return numberOrDefault(rows[0]?.value, 0);
+    }
+
+    if (rule.type === "avg_duration_ms") {
+      const { suffix, args } = scope("completed_on");
+      const rows = await this.withClient((c) =>
+        this.safeQuery<{ value: number | null }>(
+          c,
+          `select avg(extract(epoch from completed_on - started_on) * 1000)::float8 as value from ${this.q("job")} where completed_on is not null and started_on is not null${suffix}`,
+          args,
+        ),
+      );
+      return numberOrDefault(rows[0]?.value, 0);
+    }
+
+    if (rule.type === "oldest_created_age") {
+      const { suffix, args } = scope(undefined);
+      const rows = await this.withClient((c) =>
+        this.safeQuery<{ value: number | null }>(
+          c,
+          `select coalesce(max(extract(epoch from now() - created_on)), 0)::int as value from ${this.q("job")} where state in ('created','retry')${suffix}`,
+          args,
+        ),
+      );
+      return numberOrDefault(rows[0]?.value, 0);
+    }
+
+    return 0;
+  }
+
+  async getOldestCreatedAges(): Promise<Record<string, number>> {
+    const rows = await this.withClient((c) =>
+      this.safeQuery<{ name: string; ageSeconds: number }>(
+        c,
+        `select name, coalesce(max(extract(epoch from now() - created_on)), 0)::int as "ageSeconds" from ${this.q("job")} where state in ('created','retry') group by name`,
+      ),
+    );
+
+    return Object.fromEntries(
+      rows.map((row) => [row.name, numberOrDefault(row.ageSeconds, 0)]),
+    );
+  }
+
   async getTagValues(field: string, limit = 50) {
     const safe = this.tagField(field);
     const rows = await this.withClient((c) =>
@@ -493,5 +629,42 @@ function rowToQueueMetrics(row: Row): QueueMetricSummary {
     avgDurationMs: numberOrNull(row.avgDurationMs),
     avgWaitMs: numberOrNull(row.avgWaitMs),
     lastActivity: stringOrNull(row.lastActivity),
+  };
+}
+
+function emptyAlertEvaluationSnapshot(
+  ruleValues: Record<string, number>,
+): AlertEvaluationSnapshot {
+  return {
+    overview: {
+      totals: {
+        created: 0,
+        retry: 0,
+        active: 0,
+        completed: 0,
+        cancelled: 0,
+        failed: 0,
+      },
+      queues: [],
+      deadLetter: 0,
+      warnings: 0,
+    },
+    metrics: {
+      summary: {
+        totalCreated: 0,
+        totalCompleted: 0,
+        totalFailed: 0,
+        totalRetry: 0,
+        throughputPerHour: 0,
+        errorRate: 0,
+        avgDurationMs: null,
+        avgWaitMs: null,
+      },
+      buckets: [],
+      queues: [],
+    },
+    warnings: { items: [], page: 1, pageSize: 200, total: 0 },
+    oldestCreatedAges: {},
+    ruleValues,
   };
 }
