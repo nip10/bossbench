@@ -265,6 +265,16 @@ function summarizeBulkFailures(
   return `Failed: ${preview}${remaining > 0 ? `, +${remaining} more` : ""}`;
 }
 
+function queueCleanDeleteWarningCopy(
+  state: Extract<BossbenchJobState, "completed" | "failed">,
+) {
+  if (state === "failed") {
+    return "This permanently deletes failed pg-boss job rows from Postgres; deleted jobs disappear from Dead Letter, metrics, timelines, and cannot be retried.";
+  }
+
+  return "This permanently deletes completed pg-boss job rows from Postgres; deleted jobs disappear from historical job lists and metrics.";
+}
+
 async function invalidateBulkActionQueries(queryClient: QueryClient) {
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: queryPrefixes.jobs }),
@@ -734,6 +744,7 @@ export function QueuePage() {
       });
       if (queueNameRef.current !== queueName) return;
       await invalidateQueueActionQueries(queryClient, queueName);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.deadLetter });
       setPreviewState(null);
       setDeleteConfirmInput("");
       setDeleteState({
@@ -914,8 +925,10 @@ export function QueuePage() {
                 <div className="banner compact" role="note">
                   <strong>Irreversible cleanup.</strong> This permanently
                   deletes matching {previewState.result?.state} jobs from queue{" "}
-                  {previewState.result?.queue}. Failed jobs are especially
-                  irreversible: once deleted, they cannot be recovered.
+                  {previewState.result?.queue}.{" "}
+                  {previewState.result
+                    ? queueCleanDeleteWarningCopy(previewState.result.state)
+                    : null}
                 </div>
                 <div className="stack" style={{ gap: 8 }}>
                   <div className="muted">
@@ -962,6 +975,7 @@ export function QueuePage() {
                         ? deleteState.result.deletedIds.join(", ")
                         : "None"}
                     </div>
+                    <div>Cutoff: {deleteState.result.cutoff}</div>
                     <div>
                       Has more: {deleteState.result.hasMore ? "Yes" : "No"}
                     </div>
