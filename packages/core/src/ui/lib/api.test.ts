@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { QueueCleanPreviewResult } from "../../core/types";
 import { api, buildJobsQuery } from "./api";
 
 const bulkActionResponse = {
@@ -222,10 +223,12 @@ describe("queue clean preview", () => {
   });
 
   it("posts preview requests to the clean-preview endpoint", async () => {
-    const response = {
+    const response: { ok: true; result: QueueCleanPreviewResult } = {
       ok: true,
       result: {
-        matchedCount: 3,
+        matched: 3,
+        queue: "email",
+        state: "completed",
         sampleIds: ["job-1"],
         hasMore: false,
         cutoff: "2026-05-25T12:00:00.000Z",
