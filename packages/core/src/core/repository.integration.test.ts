@@ -40,7 +40,7 @@ describeIntegration("BossbenchRepository pg-boss integration", () => {
       `insert into ${schema}.job (id, name, state, priority, data, output, created_on, started_on, completed_on)
         values
           ($1, 'email', 'created', 5, $2::jsonb, null, now() - interval '2 hours', now() - interval '90 minutes', null),
-          ($3, 'reports', 'failed', 1, $4::jsonb, $5::jsonb, now() - interval '1 hour', now() - interval '50 minutes', now() - interval '10 minutes'),
+          ($3, 'reports', 'failed', 1, $4::jsonb, $5::jsonb, now() - interval '2 hours', now() - interval '100 minutes', now() - interval '90 minutes'),
           ($6, 'email', 'completed', 1, $7::jsonb, $8::jsonb, now() - interval '6 hours', now() - interval '5 hours', now() - interval '4 hours'),
           ($9, 'email', 'completed', 1, $10::jsonb, $11::jsonb, now() - interval '5 hours', now() - interval '4 hours', now() - interval '3 hours'),
           ($12, 'pending', 'created', 1, $13::jsonb, null, now() - interval '30 minutes', null, null),
@@ -55,10 +55,10 @@ describeIntegration("BossbenchRepository pg-boss integration", () => {
         JSON.stringify({ teamId: "beta", report: "daily" }),
         JSON.stringify({ error: "boom" }),
         completedJobId,
-        JSON.stringify({ teamId: "alpha", report: "old-completed" }),
+        JSON.stringify({ teamId: "delta", report: "old-completed" }),
         JSON.stringify({ deadLetter: true, retryCount: 2 }),
         completedJobId2,
-        JSON.stringify({ teamId: "alpha", report: "older-completed" }),
+        JSON.stringify({ teamId: "delta", report: "older-completed" }),
         JSON.stringify({ deadLetter: true, retryCount: 4 }),
         pendingJobId,
         JSON.stringify({ teamId: "gamma", report: "pending" }),
