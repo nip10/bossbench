@@ -18,16 +18,10 @@ This document tracks Bossbench parity with upstream Workbench. Bossbench is pg-b
 
 ## Current summary
 
-Bossbench is now strong in job operations, job detail, future-job exploration, schedule actions, manual enqueue/requeue, metrics, adapters, CLI, MCP, examples, AI-search metadata, package/docs discoverability, and package release readiness. Current follow-up work now also includes alerting, docs, and marketing/discoverability parity alongside adapted destructive queue clean behavior, deeper command-center polish, and desktop.
+Bossbench is now strong in non-desktop Workbench parity: job operations, job detail, future-job exploration, schedule actions, manual enqueue/requeue, queue clean preview/delete, metrics, alert evaluation/delivery, adapters, CLI, MCP, examples, AI-search metadata, package/docs discoverability, and package release readiness are implemented or adapted to pg-boss/Postgres. The remaining large parity area is desktop, which is deferred until explicitly resumed; optional non-desktop polish remains around deeper job detail and command-center UX.
 
 Open parity issues:
 
-- [#59 pg-boss-safe queue clean semantics](https://github.com/nip10/bossbench/issues/59) (preview + explicit destructive delete flags/audit/direct SQL safety)
-- [#71 Alerts dashboard and evaluation](https://github.com/nip10/bossbench/issues/71)
-- [#72 Alert delivery](https://github.com/nip10/bossbench/issues/72)
-- [#73 Slack/Discord alert formatting](https://github.com/nip10/bossbench/issues/73)
-- [#74 Docs expansion](https://github.com/nip10/bossbench/issues/74)
-- [#75 Marketing/discoverability cleanup](https://github.com/nip10/bossbench/issues/75)
 - [#14 Desktop parity](https://github.com/nip10/bossbench/issues/14)
 - [#29 Desktop scaffold and onboarding](https://github.com/nip10/bossbench/issues/29)
 - [#30 Desktop secure connection profile storage](https://github.com/nip10/bossbench/issues/30)
@@ -59,7 +53,7 @@ When auditing upstream again, compare from the `Last upstream audit` commit abov
 | Dark UI/theme toggle | Implemented | Bossbench supports dark/light dashboard theme. | — |
 | Overview command center | Adapted | Bossbench uses Overview as home and now adds attention signals plus a live sync cue on top of queue/job/dead-letter/warning summaries, metrics-driven throughput, wait/duration, slowest queues, and failing queues. Workbench remains richer for worker/paused-queue health, per-queue cards, and deeper live cues. | [#58](https://github.com/nip10/bossbench/issues/58) |
 | Queue overview cards/grid | Adapted | Bossbench has queue table and detail pages; Workbench queue cards are visually richer. | [#9](https://github.com/nip10/bossbench/issues/9) |
-| Alerts dashboard | Planned | Workbench now has alert rules, contact points, and delivery history. Bossbench should add a pg-boss-native Alerts page that starts with configured rules and current SQL-backed violations before delivery. | [#71](https://github.com/nip10/bossbench/issues/71) |
+| Alerts dashboard | Implemented | Bossbench has a pg-boss-native Alerts page for configured rules, current SQL-backed violations, masked contact-point summaries, and delivery status. | — |
 | Jobs/runs list | Implemented | Bossbench supports search, queue/state/date/tag filters, sorting, pagination, and bulk actions. | — |
 | Bulk job actions | Adapted | Bossbench supports bulk retry/cancel/delete. Bulk promote is a BullMQ-only non-goal. | — |
 | Job detail tabs | Adapted | Bossbench has summary, payload, output, timeline, raw tabs plus copy/export. Workbench also has BullMQ-specific logs/error detail that Bossbench adapts through pg-boss data. | [#12](https://github.com/nip10/bossbench/issues/12) |
@@ -93,7 +87,7 @@ When auditing upstream again, compare from the `Last upstream audit` commit abov
 | Bulk retry/delete/promote | Adapted | Bossbench supports bulk retry/cancel/delete. Bulk promote is a non-goal. | — |
 | Queue pause/resume | Non-goal | pg-boss has no durable queue pause/resume equivalent. | — |
 | Queue clean | Implemented | Bossbench splits queue clean into preview (`allowQueueClean`) and destructive delete (`allowQueueCleanDelete`) with exact confirmation, audit events, batch limits, and direct SQL targeting pg-boss storage. | [#59](https://github.com/nip10/bossbench/issues/59) |
-| Alert evaluation and delivery | Planned | Workbench uses BullMQ `QueueEvents`; Bossbench should use pg-boss/Postgres polling, conservative dedupe/cooldown, and optional webhook delivery. | [#71](https://github.com/nip10/bossbench/issues/71), [#72](https://github.com/nip10/bossbench/issues/72), [#73](https://github.com/nip10/bossbench/issues/73) |
+| Alert evaluation and delivery | Adapted | Workbench uses BullMQ `QueueEvents`; Bossbench uses pg-boss/Postgres rule evaluation, optional server-side runner, cooldown/dedupe, and generic webhook, Slack, and Discord payloads. | — |
 | Search endpoint | Implemented | Bossbench `/search` delegates to SQL-backed job search. | — |
 | Tag values endpoint | Implemented | Bossbench exposes configured JSONB tag values. | — |
 | Metrics API | Adapted | Bossbench metrics are SQL-backed with summary, buckets, and queue health. Workbench's slowest/failing job-type metrics are adapted to pg-boss queue health. | [#11](https://github.com/nip10/bossbench/issues/11) |
@@ -137,7 +131,7 @@ When auditing upstream again, compare from the `Last upstream audit` commit abov
 | CLI initializer | Adapted | Bossbench CLI detects supported frameworks and injects pg-boss/Postgres setup. Docs can be clearer. | [#13](https://github.com/nip10/bossbench/issues/13) |
 | Framework examples | Implemented | Bossbench has `with-*` examples plus a seeded demo. | — |
 | Standalone Docker deployment | Implemented | Bossbench now ships `apps/standalone` for connecting to an external pg-boss/Postgres database with read-only-first defaults and a Dockerfile. | [#56](https://github.com/nip10/bossbench/issues/56) |
-| Marketing/docs site | Adapted | Bossbench has Workbench-style marketing site adapted to pg-boss plus `llms.txt`, AI-search robots policy, sitemap, JSON-LD, app-icon metadata, package discoverability metadata, expanded core README docs, copy-command overflow polish, and structured docs expansion tracked in #74/#75. | [#68](https://github.com/nip10/bossbench/issues/68), [#74](https://github.com/nip10/bossbench/issues/74), [#75](https://github.com/nip10/bossbench/issues/75) |
+| Marketing/docs site | Adapted | Bossbench has Workbench-style marketing site adapted to pg-boss plus `llms.txt`, AI-search robots policy, sitemap, JSON-LD, app-icon metadata, package discoverability metadata, expanded README/core docs, alerting/queue-clean guidance, and copy-command overflow polish. | [#68](https://github.com/nip10/bossbench/issues/68) |
 | Smoke tests | Implemented | Bossbench smoke covers package entrypoints and optional demo checks. | — |
 | CI | Implemented | Bossbench runs lint, commitlint, typecheck, tests, integration, build, and smoke. | — |
 | npm release workflow | Implemented | Bossbench uses Changesets release workflow. | — |
@@ -147,9 +141,9 @@ When auditing upstream again, compare from the `Last upstream audit` commit abov
 
 ## Remaining priority order
 
-1. Land alerting/docs/marketing follow-ups (#71–#75), starting with pg-boss-native alert evaluation, delivery, and docs/discoverability polish.
-2. Deepen pg-boss job detail further: retry/error history and safe queue maintenance semantics.
-3. Continue dashboard command-center polish and desktop parity through [#14](https://github.com/nip10/bossbench/issues/14) and child issues [#29–#34](https://github.com/nip10/bossbench/issues?q=is%3Aissue%20state%3Aopen%20label%3Adesktop).
+1. Deepen pg-boss job detail further: retry/error history and safe operational detail.
+2. Continue dashboard command-center polish: richer overview/alerts/live cues and optional sidebar/command palette polish.
+3. Keep desktop parity deferred through [#14](https://github.com/nip10/bossbench/issues/14) and child issues [#29–#34](https://github.com/nip10/bossbench/issues?q=is%3Aissue%20state%3Aopen%20label%3Adesktop) until desktop work is explicitly resumed.
 
 ## Maintenance rule
 
