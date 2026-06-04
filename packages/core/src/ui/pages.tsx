@@ -597,9 +597,10 @@ export function QueuesPage() {
 
 export function QueuePage() {
   const params = useParams({ strict: false }) as { queueName: string };
+  const queueName = params.queueName;
   const queryClient = useQueryClient();
   const { data: config } = useConfig();
-  const { data, isLoading, error } = useQueue(params.queueName);
+  const { data, isLoading, error } = useQueue(queueName);
   const [payloadInput, setPayloadInput] = useState("");
   const [priorityInput, setPriorityInput] = useState("");
   const [feedback, setFeedback] = useState<JobFeedbackState>(null);
@@ -611,9 +612,18 @@ export function QueuePage() {
   const [previewAgeInput, setPreviewAgeInput] = useState("3600");
   const [previewLimitInput, setPreviewLimitInput] = useState("1000");
   const [enqueueInFlight, setEnqueueInFlight] = useState(false);
+  const queueNameRef = useRef(queueName);
   const actionsEnabled = !!config?.hasBoss && !config.readonly;
   const manualEnqueueEnabled = actionsEnabled && !!config?.allowManualEnqueue;
   const queueCleanPreviewEnabled = actionsEnabled && !!config?.allowQueueClean;
+  const previewInFlight = previewState?.status === "running";
+
+  useEffect(() => {
+    queueNameRef.current = queueName;
+    setPreviewState((current) =>
+      current?.result?.queue === queueName ? current : null,
+    );
+  }, [queueName]);
 
   const enqueueJob = async () => {
     if (enqueueInFlight) return;
@@ -622,7 +632,7 @@ export function QueuePage() {
 
     try {
       const request = parseEnqueuePayloadInput(payloadInput, priorityInput);
-      const response = await api.enqueueJob(params.queueName, request);
+      const response = await api.enqueueJob(queueName, request);
       const jobId =
         response &&
         typeof response === "object" &&
@@ -633,7 +643,7 @@ export function QueuePage() {
           ? String((response.result as { id?: unknown }).id ?? "")
           : "";
 
-      await invalidateQueueActionQueries(queryClient, params.queueName);
+      await invalidateQueueActionQueries(queryClient, queueName);
       setPayloadInput("");
       setPriorityInput("");
       setFeedback({
@@ -651,7 +661,7 @@ export function QueuePage() {
   };
 
   const previewQueueClean = async () => {
-    if (!queueCleanPreviewEnabled) return;
+    if (!queueCleanPreviewEnabled || previewInFlight) return;
     setPreviewState({ status: "running", message: "Loading preview…" });
     try {
       const request = {
@@ -659,13 +669,15 @@ export function QueuePage() {
         olderThanSeconds: Number(previewAgeInput),
         ...(previewLimitInput ? { limit: Number(previewLimitInput) } : {}),
       };
-      const response = await api.previewQueueClean(params.queueName, request);
+      const response = await api.previewQueueClean(queueName, request);
+      if (queueNameRef.current !== queueName) return;
       setPreviewState({
         status: "success",
         message: "Preview loaded.",
         result: response.result,
       });
     } catch (error) {
+      if (queueNameRef.current !== queueName) return;
       setPreviewState({
         status: "error",
         message: error instanceof Error ? error.message : "Preview failed",
@@ -748,7 +760,7 @@ export function QueuePage() {
       {queueCleanPreviewEnabled ? (
         <Section
           title="Queue clean preview"
-          subtitle="Read-only preview of jobs that would match queue clean"
+          subtitle="Preview only; no jobs are deleted"
         >
           <div className="stack" style={{ gap: 12 }}>
             <div className="filters" style={{ alignItems: "end" }}>
@@ -759,6 +771,7 @@ export function QueuePage() {
                 <span className="muted">State</span>
                 <select
                   value={previewStateInput}
+                  disabled={previewInFlight}
                   onChange={(e) =>
                     setPreviewStateInput(
                       e.target.value as "completed" | "failed",
@@ -777,6 +790,7 @@ export function QueuePage() {
                 <Input
                   type="number"
                   value={previewAgeInput}
+                  disabled={previewInFlight}
                   onChange={(e) => setPreviewAgeInput(e.target.value)}
                 />
               </div>
@@ -788,15 +802,16 @@ export function QueuePage() {
                 <Input
                   type="number"
                   value={previewLimitInput}
+                  disabled={previewInFlight}
                   onChange={(e) => setPreviewLimitInput(e.target.value)}
                 />
               </div>
               <Button
                 type="button"
-                disabled={!queueCleanPreviewEnabled}
+                disabled={!queueCleanPreviewEnabled || previewInFlight}
                 onClick={() => void previewQueueClean()}
               >
-                Preview clean
+                {previewInFlight ? "Loading preview…" : "Preview clean"}
               </Button>
             </div>
             {previewState ? (
@@ -804,6 +819,8 @@ export function QueuePage() {
             ) : null}
             {previewState?.result ? (
               <div className="stack" style={{ gap: 8 }}>
+                <div>Queue: {previewState.result.queue}</div>
+                <div>State: {previewState.result.state}</div>
                 <div>
                   Matched jobs: {previewState.result.matched.toLocaleString()}
                 </div>

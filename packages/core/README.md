@@ -61,7 +61,7 @@ app.route(
 | `allowUnauthenticated` | Explicitly allow unprotected browsing. Defaults to `false`. |
 | `readonly` | Disable all mutations. Defaults to `true` without auth, `false` with auth. |
 | `allowManualEnqueue` | Enable manual enqueue and enqueue-copy actions. Defaults to `false`. |
-| `allowQueueClean` | Enable queue clean capabilities when safety work lands. Defaults to `false`. |
+| `allowQueueClean` | Enable non-destructive queue clean preview. Requires `boss`, writable mode, and route protection. Defaults to `false`. |
 | `alerts` | Optional config-driven alert rules and contact points. Evaluation is read-only; delivery runners are opt-in. |
 | `tags` | Fields from `job.data` that can be used as filters. |
 
