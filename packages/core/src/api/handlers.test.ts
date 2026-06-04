@@ -373,6 +373,87 @@ describe("route table /jobs parsing", () => {
     });
   });
 
+  it.each([
+    ["non-object body", null],
+    ["array body", []],
+    [
+      "invalid state",
+      {
+        state: "bogus",
+        cutoff: "2026-05-25T12:00:00.000Z",
+        confirm: "clean completed email",
+      },
+    ],
+    [
+      "invalid cutoff string",
+      {
+        state: "completed",
+        cutoff: "not-a-date",
+        confirm: "clean completed email",
+      },
+    ],
+    [
+      "cutoff newer than 3600 seconds old",
+      {
+        state: "completed",
+        cutoff: new Date(Date.now() - 3599_000).toISOString(),
+        confirm: "clean completed email",
+      },
+    ],
+    [
+      "limit <= 0",
+      {
+        state: "completed",
+        cutoff: "2026-05-25T12:00:00.000Z",
+        limit: 0,
+        confirm: "clean completed email",
+      },
+    ],
+    [
+      "non-integer limit",
+      {
+        state: "completed",
+        cutoff: "2026-05-25T12:00:00.000Z",
+        limit: 1.5,
+        confirm: "clean completed email",
+      },
+    ],
+    [
+      "non-number limit",
+      {
+        state: "completed",
+        cutoff: "2026-05-25T12:00:00.000Z",
+        limit: "10",
+        confirm: "clean completed email",
+      },
+    ],
+  ] as const)("validates queue clean delete %s", async (_label, body) => {
+    const cleanQueue = vi.fn();
+    const route = buildRouteTable(
+      fakeCore(
+        vi.fn(),
+        {},
+        {
+          cleanQueue,
+          ensureQueueCleanDeleteAvailable: vi.fn(),
+        },
+      ) as never,
+    ).find(
+      (candidate) =>
+        candidate.method === "post" && candidate.path === "/queues/:name/clean",
+    );
+    expect(route).toBeDefined();
+    assertRoute(route);
+
+    await expect(
+      route.handler({ params: { name: "email" }, query: {}, body }),
+    ).resolves.toMatchObject({
+      status: 400,
+      body: { error: { code: "INVALID_FILTER" } },
+    });
+    expect(cleanQueue).not.toHaveBeenCalled();
+  });
+
   it("cleans queue after guard validation", async () => {
     const cleanQueue = vi.fn().mockResolvedValue({
       queue: "email",

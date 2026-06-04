@@ -580,6 +580,8 @@ function mutationMessage(error: unknown, code: string): string {
     return errorMessage(error) ?? "Action failed";
   if (code === "MANUAL_ENQUEUE_DISABLED") return "Manual enqueue is disabled";
   if (code === "QUEUE_CLEAN_DISABLED") return "Queue clean preview is disabled";
+  if (code === "QUEUE_CLEAN_DELETE_DISABLED")
+    return "Queue clean delete is disabled";
   return "Action failed";
 }
 
