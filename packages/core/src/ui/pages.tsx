@@ -653,6 +653,11 @@ export function QueuePage() {
   const deleteConfirmMatches =
     deleteReady && deleteConfirmInput === expectedDeleteConfirmation;
 
+  const resetQueueCleanPreview = () => {
+    setPreviewState(null);
+    setDeleteConfirmInput("");
+  };
+
   useEffect(() => {
     queueNameRef.current = queueName;
     setPreviewState((current) =>
@@ -852,11 +857,12 @@ export function QueuePage() {
                 <select
                   value={previewStateInput}
                   disabled={previewInFlight || deleteInFlight}
-                  onChange={(e) =>
+                  onChange={(e) => {
                     setPreviewStateInput(
                       e.target.value as "completed" | "failed",
-                    )
-                  }
+                    );
+                    resetQueueCleanPreview();
+                  }}
                 >
                   <option value="completed">Completed</option>
                   <option value="failed">Failed</option>
@@ -871,7 +877,10 @@ export function QueuePage() {
                   type="number"
                   value={previewAgeInput}
                   disabled={previewInFlight || deleteInFlight}
-                  onChange={(e) => setPreviewAgeInput(e.target.value)}
+                  onChange={(e) => {
+                    setPreviewAgeInput(e.target.value);
+                    resetQueueCleanPreview();
+                  }}
                 />
               </div>
               <div
@@ -883,7 +892,10 @@ export function QueuePage() {
                   type="number"
                   value={previewLimitInput}
                   disabled={previewInFlight || deleteInFlight}
-                  onChange={(e) => setPreviewLimitInput(e.target.value)}
+                  onChange={(e) => {
+                    setPreviewLimitInput(e.target.value);
+                    resetQueueCleanPreview();
+                  }}
                 />
               </div>
               <Button
