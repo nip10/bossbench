@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { QueueCleanPreviewResult } from "../../core/types";
+import type {
+  QueueCleanDeleteResult,
+  QueueCleanPreviewResult,
+} from "../../core/types";
 import { api, buildJobsQuery } from "./api";
 
 const bulkActionResponse = {
@@ -252,6 +255,50 @@ describe("queue clean preview", () => {
           state: "completed",
           olderThanSeconds: 7200,
           limit: 10,
+        }),
+      }),
+    );
+  });
+});
+
+describe("queue clean delete", () => {
+  afterEach(() => {
+    // no-op
+    vi.restoreAllMocks();
+  });
+
+  it("posts delete requests to the clean endpoint", async () => {
+    const response: { ok: true; result: QueueCleanDeleteResult } = {
+      ok: true,
+      result: {
+        queue: "email",
+        state: "failed",
+        cutoff: "2026-05-25T12:00:00.000Z",
+        deleted: 2,
+        deletedIds: ["job-1", "job-2"],
+        hasMore: true,
+      },
+    };
+    const fetchMock = mockFetchJson(response);
+
+    await expect(
+      api.cleanQueue("email", {
+        state: "failed",
+        cutoff: "2026-05-25T12:00:00.000Z",
+        limit: 10,
+        confirm: "clean failed email",
+      }),
+    ).resolves.toEqual(response);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/api/queues/email/clean"),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          state: "failed",
+          cutoff: "2026-05-25T12:00:00.000Z",
+          limit: 10,
+          confirm: "clean failed email",
         }),
       }),
     );
