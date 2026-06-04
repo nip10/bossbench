@@ -9,7 +9,8 @@ Bossbench is inspired by Workbench's embedded dashboard model, but is pg-boss-na
 - Workbench-style embedded dashboard UI.
 - Hono, h3, Nuxt/Nitro, AdonisJS, TanStack Start, Express, Fastify, Elysia, NestJS, and Next.js adapters.
 - A standalone read-only-first app for external pg-boss/Postgres deployments.
-- Queues, jobs, schedules, warnings, dead-letter, metrics, activity, and settings screens.
+- Queues, jobs, schedules, warnings, dead-letter, metrics, activity, alerts, and settings screens.
+- Config-driven pg-boss alert rules with webhook, Slack, and Discord payload helpers.
 - Actions for retry, cancel, resume, delete, schedule, and unschedule when a `PgBoss` instance is provided.
 - SQL-backed pagination, filtering, search, and configured JSON tag filters.
 - Basic auth by default; explicit `allowUnauthenticated: true` is required for unprotected local browsing.
@@ -147,7 +148,48 @@ export default app;
 | `readonly` | Disable all mutations. Defaults to `true` without auth, `false` with auth. |
 | `allowManualEnqueue` | Enable manual enqueue and enqueue-copy actions. Defaults to `false`. |
 | `allowQueueClean` | Enable queue clean capabilities when the safety design lands. Defaults to `false`. |
+| `alerts` | Optional config-driven alert rules and contact points. Evaluation is SQL-backed and read-only; delivery runners are opt-in. |
 | `tags` | Fields from `job.data` that can be used as filters. |
+
+## Alerts
+
+Bossbench alerting is pg-boss/Postgres-native. Rules are configured in code, evaluated from SQL-backed queue/job/warning data, and displayed on the dashboard Alerts page. This avoids storing webhook secrets in the browser or mutating pg-boss tables for alert setup.
+
+```ts
+bossbench({
+  db: process.env.DATABASE_URL!,
+  auth: {
+    username: process.env.BOSSBENCH_USER!,
+    password: process.env.BOSSBENCH_PASS!,
+  },
+  alerts: {
+    enabled: true,
+    rules: [
+      {
+        id: "email-failures",
+        name: "Email failures",
+        type: "failed_count",
+        queue: "email",
+        windowMinutes: 15,
+        threshold: 5,
+        severity: "critical",
+        cooldownMinutes: 30,
+        contactPointIds: ["ops"],
+      },
+    ],
+    contactPoints: [
+      {
+        id: "ops",
+        name: "Ops webhook",
+        type: "slack",
+        urlEnv: "BOSSBENCH_ALERT_WEBHOOK",
+      },
+    ],
+  },
+});
+```
+
+Supported rule types are `failed_count`, `dead_letter_count`, `retry_backlog_count`, `oldest_created_age`, `avg_wait_ms`, `avg_duration_ms`, and `warning_count`. `oldest_created_age` thresholds are seconds; wait and duration thresholds are milliseconds. Generic webhook, Slack, and Discord payloads are plain JSON; run delivery from one server-side process or behind your own deployment-level single-runner guard to avoid duplicate notifications in replicated apps.
 
 ## Development
 

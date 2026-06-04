@@ -57,6 +57,11 @@ export function buildRouteTable(core: BossbenchCore): RouteDef[] {
     },
     {
       method: "get",
+      path: "/alerts",
+      handler: async () => ok(await core.getAlerts()),
+    },
+    {
+      method: "get",
       path: "/queues",
       handler: async () => ok(await repository.listQueues()),
     },

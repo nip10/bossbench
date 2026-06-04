@@ -9,6 +9,51 @@ export type BossbenchJobState =
   | "cancelled"
   | "failed";
 
+export type BossbenchAlertRuleType =
+  | "failed_count"
+  | "dead_letter_count"
+  | "retry_backlog_count"
+  | "oldest_created_age"
+  | "avg_wait_ms"
+  | "avg_duration_ms"
+  | "warning_count";
+
+export type BossbenchAlertSeverity = "info" | "warning" | "critical";
+
+export interface BossbenchAlertRule {
+  id: string;
+  name: string;
+  type: BossbenchAlertRuleType;
+  queue?: string;
+  windowMinutes?: number;
+  threshold: number;
+  severity?: BossbenchAlertSeverity;
+  cooldownMinutes?: number;
+  contactPointIds?: string[];
+}
+
+export type BossbenchAlertContactPointType = "webhook" | "slack" | "discord";
+
+export interface BossbenchAlertContactPoint {
+  id: string;
+  name: string;
+  type: BossbenchAlertContactPointType;
+  url?: string;
+  urlEnv?: string;
+}
+
+export interface BossbenchAlertsOptions {
+  enabled?: boolean;
+  rules?: BossbenchAlertRule[];
+  contactPoints?: BossbenchAlertContactPoint[];
+}
+
+export interface NormalizedBossbenchAlertsOptions {
+  enabled: boolean;
+  rules: BossbenchAlertRule[];
+  contactPoints: BossbenchAlertContactPoint[];
+}
+
 export interface BossbenchOptions {
   boss?: PgBoss;
   db?: string | Pool | Client;
@@ -21,6 +66,7 @@ export interface BossbenchOptions {
   readonly?: boolean;
   allowManualEnqueue?: boolean;
   allowQueueClean?: boolean;
+  alerts?: BossbenchAlertsOptions;
   tags?: string[];
 }
 
@@ -30,6 +76,7 @@ export interface NormalizedBossbenchOptions extends BossbenchOptions {
   readonly: boolean;
   allowManualEnqueue: boolean;
   allowQueueClean: boolean;
+  alerts: NormalizedBossbenchAlertsOptions;
   tags: string[];
   basePath: string;
 }
@@ -147,6 +194,43 @@ export interface ActivityPoint {
   created: number;
   completed: number;
   failed: number;
+}
+
+export interface BossbenchAlertViolation {
+  ruleId: string;
+  ruleName: string;
+  type: BossbenchAlertRuleType;
+  severity: BossbenchAlertSeverity;
+  queue: string | null;
+  threshold: number;
+  current: number;
+  windowMinutes: number | null;
+  observedAt: string;
+  fingerprint: string;
+}
+
+export interface BossbenchAlertsResponse {
+  enabled: boolean;
+  rules: BossbenchAlertRule[];
+  contactPoints: Array<{
+    id: string;
+    name: string;
+    type: BossbenchAlertContactPointType;
+    configured: boolean;
+  }>;
+  violations: BossbenchAlertViolation[];
+  delivery: {
+    enabled: boolean;
+    available: boolean;
+  };
+}
+
+export interface AlertEvaluationSnapshot {
+  overview: OverviewStats;
+  metrics: MetricsResponse;
+  warnings: PaginatedResponse<WarningInfo>;
+  oldestCreatedAges?: Record<string, number>;
+  ruleValues?: Record<string, number>;
 }
 
 export interface BulkJobActionResult {

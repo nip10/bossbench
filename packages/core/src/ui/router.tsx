@@ -23,6 +23,7 @@ import { dashboardRefreshCue } from "./lib/dashboard-polish";
 import { queryKeys, useConfig, useQueues } from "./lib/hooks";
 import {
   ActivityPage,
+  AlertsPage,
   DeadLetterPage,
   FutureJobsPage,
   JobPage,
@@ -94,6 +95,11 @@ const warningsRoute = createRoute({
   path: "warnings",
   component: WarningsPage,
 });
+const alertsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "alerts",
+  component: AlertsPage,
+});
 const metricsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "metrics",
@@ -119,6 +125,7 @@ const routeTree = rootRoute.addChildren([
   schedulesRoute,
   deadRoute,
   warningsRoute,
+  alertsRoute,
   metricsRoute,
   activityRoute,
   settingsRoute,
@@ -198,13 +205,15 @@ function RootLayout() {
             ? "dead-letter"
             : location.pathname.startsWith("/warnings")
               ? "warnings"
-              : location.pathname.startsWith("/metrics")
-                ? "metrics"
-                : location.pathname.startsWith("/activity")
-                  ? "activity"
-                  : location.pathname.startsWith("/settings")
-                    ? "settings"
-                    : "overview";
+              : location.pathname.startsWith("/alerts")
+                ? "alerts"
+                : location.pathname.startsWith("/metrics")
+                  ? "metrics"
+                  : location.pathname.startsWith("/activity")
+                    ? "activity"
+                    : location.pathname.startsWith("/settings")
+                      ? "settings"
+                      : "overview";
   const title =
     nav === "overview"
       ? "Overview"
@@ -220,11 +229,13 @@ function RootLayout() {
                 ? "Dead Letter"
                 : nav === "warnings"
                   ? "Warnings"
-                  : nav === "metrics"
-                    ? "Metrics"
-                    : nav === "activity"
-                      ? "Activity"
-                      : "Settings";
+                  : nav === "alerts"
+                    ? "Alerts"
+                    : nav === "metrics"
+                      ? "Metrics"
+                      : nav === "activity"
+                        ? "Activity"
+                        : "Settings";
   const pageSubtitle = config
     ? `${config.schema ?? "pgboss"} • ${config.readonly || !config.hasBoss ? "browse-only" : "actions enabled"}`
     : "Loading…";

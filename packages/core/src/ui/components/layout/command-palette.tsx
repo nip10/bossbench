@@ -19,6 +19,7 @@ const NAV_ITEMS: Array<[string, string]> = [
   ["/schedules", "Schedules"],
   ["/dead-letter", "Dead Letter"],
   ["/warnings", "Warnings"],
+  ["/alerts", "Alerts"],
   ["/metrics", "Metrics"],
   ["/activity", "Activity"],
   ["/settings", "Settings"],

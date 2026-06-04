@@ -137,6 +137,30 @@ describe("future jobs", () => {
   });
 });
 
+describe("alerts", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("fetches alert state", async () => {
+    const payload = {
+      enabled: false,
+      rules: [],
+      contactPoints: [],
+      violations: [],
+      delivery: { enabled: false, available: false },
+    };
+    const fetchMock = mockFetchJson(payload);
+
+    await expect(api.alerts()).resolves.toEqual(payload);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/api/alerts"),
+      expect.any(Object),
+    );
+  });
+});
+
 describe("schedule actions", () => {
   afterEach(() => {
     // no-op

@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import {
   Activity,
+  AlertTriangle,
   BarChart3,
   Bell,
   Calendar,
@@ -23,6 +24,7 @@ const items = [
   ["/schedules", "Schedules", Calendar],
   ["/dead-letter", "Dead Letter", Zap],
   ["/warnings", "Warnings", Bell],
+  ["/alerts", "Alerts", AlertTriangle],
   ["/metrics", "Metrics", BarChart3],
   ["/activity", "Activity", Activity],
   ["/settings", "Settings", Settings],

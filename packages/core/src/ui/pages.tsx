@@ -26,6 +26,9 @@ import {
 } from "react";
 import type {
   ActivityPoint,
+  BossbenchAlertRule,
+  BossbenchAlertRuleType,
+  BossbenchAlertViolation,
   BossbenchJobState,
   BulkJobActionResult,
   JobDetail,
@@ -64,6 +67,7 @@ import {
   queryKeys,
   queryPrefixes,
   useActivity,
+  useAlerts,
   useConfig,
   useDeadLetter,
   useFutureJobs,
@@ -171,6 +175,35 @@ function rowKey(row: ReactNode[]) {
       return String(cell);
   }
   return row.length.toString();
+}
+
+function isDurationAlertRule(type: BossbenchAlertRuleType) {
+  return type === "avg_wait_ms" || type === "avg_duration_ms";
+}
+
+function formatAlertValue(type: BossbenchAlertRuleType, value: number) {
+  if (type === "oldest_created_age") return formatSeconds(value);
+  return isDurationAlertRule(type)
+    ? formatDurationMs(value)
+    : value.toLocaleString();
+}
+
+function formatSeconds(value: number) {
+  if (value < 60) return `${value.toLocaleString()}s`;
+  if (value < 3600) return `${Math.round(value / 60).toLocaleString()}m`;
+  return `${(value / 3600).toFixed(1)}h`;
+}
+
+function alertScope(rule: BossbenchAlertRule) {
+  return rule.queue ? rule.queue : "All queues";
+}
+
+function alertDeliveryStatus(delivery: {
+  enabled: boolean;
+  available: boolean;
+}) {
+  if (!delivery.available) return "Unavailable";
+  return delivery.enabled ? "Enabled" : "Disabled";
 }
 
 function nodeKey(node: ReactNode) {
@@ -2300,6 +2333,170 @@ export function DeadLetterPage() {
         />
       )}
     </Section>
+  );
+}
+
+export function AlertsPage() {
+  const { data, isLoading, error } = useAlerts();
+
+  if (isLoading && !data)
+    return <EmptyState icon={LoaderCircle} title="Loading alerts…" />;
+  if (error && !data)
+    return (
+      <EmptyState
+        icon={AlertTriangle}
+        title="Alerts unavailable"
+        description={error.message}
+      />
+    );
+
+  if (!data?.enabled || !data?.rules?.length) {
+    return (
+      <EmptyState
+        icon={Bell}
+        title="Alerts are config-driven"
+        description="Alerting is read-only here. Configure rules and contact points in the host app, then refresh to review violations and delivery coverage."
+      />
+    );
+  }
+
+  const violations = (data.violations ?? []) as BossbenchAlertViolation[];
+  const rules = data.rules ?? [];
+  const contactPoints = data.contactPoints ?? [];
+
+  return (
+    <div className="section">
+      <div className="stats-grid">
+        <SummaryCard
+          title="Current violations"
+          value={violations.length}
+          subtitle="Active rules that are firing"
+          icon={AlertTriangle}
+        />
+        <SummaryCard
+          title="Rules"
+          value={rules.length}
+          subtitle="Loaded from host config"
+          icon={Bell}
+        />
+        <SummaryCard
+          title="Contact points"
+          value={contactPoints.length}
+          subtitle="Configured delivery targets"
+          icon={Inbox}
+        />
+        <SummaryCard
+          title="Delivery"
+          value={alertDeliveryStatus(data.delivery)}
+          subtitle="Status not surfaced in the UI yet"
+          icon={CircleSlash2}
+        />
+      </div>
+
+      <Section title="Violations" subtitle="Rules currently above threshold">
+        {violations.length ? (
+          <Table
+            wrapperClassName="jobs-table-scroll"
+            tableClassName="jobs-table"
+            columns={[
+              "Rule",
+              "Type",
+              "Scope",
+              "Current",
+              "Threshold",
+              "Severity",
+              "Observed",
+            ]}
+            rows={violations.map((violation) => [
+              <span className="mono" key={violation.ruleId}>
+                {violation.ruleName}
+              </span>,
+              <span className="mono" key={`${violation.ruleId}-type`}>
+                {violation.type}
+              </span>,
+              violation.queue ?? "All queues",
+              formatAlertValue(violation.type, violation.current),
+              formatAlertValue(violation.type, violation.threshold),
+              violation.severity,
+              <RelativeTime
+                key={`${violation.ruleId}-observed`}
+                timestamp={violation.observedAt}
+              />,
+            ])}
+          />
+        ) : (
+          <EmptyState
+            icon={Bell}
+            title="No active violations"
+            description="Rules are loaded and within threshold right now."
+          />
+        )}
+      </Section>
+
+      <Section title="Rules" subtitle={`${rules.length} configured rules`}>
+        <Table
+          wrapperClassName="jobs-table-scroll"
+          tableClassName="jobs-table"
+          columns={[
+            "Name",
+            "Type",
+            "Scope",
+            "Threshold",
+            "Window",
+            "Cooldown",
+            "Severity",
+            "Contact points",
+          ]}
+          rows={rules.map((rule: BossbenchAlertRule) => [
+            <span className="mono" key={rule.id}>
+              {rule.name}
+            </span>,
+            <span className="mono" key={`${rule.id}-type`}>
+              {rule.type}
+            </span>,
+            alertScope(rule),
+            formatAlertValue(rule.type, rule.threshold),
+            rule.windowMinutes !== undefined ? `${rule.windowMinutes}m` : "—",
+            rule.cooldownMinutes !== undefined
+              ? `${rule.cooldownMinutes}m`
+              : "—",
+            rule.severity ?? "warning",
+            rule.contactPointIds?.length
+              ? rule.contactPointIds.join(", ")
+              : "—",
+          ])}
+        />
+      </Section>
+
+      <Section
+        title="Contact points"
+        subtitle="Configured targets only; secrets stay in the host app"
+      >
+        {contactPoints.length ? (
+          <Table
+            wrapperClassName="jobs-table-scroll"
+            tableClassName="jobs-table"
+            columns={["ID", "Name", "Type", "Configured"]}
+            rows={contactPoints.map((contactPoint) => [
+              <span className="mono" key={contactPoint.id}>
+                {contactPoint.id}
+              </span>,
+              contactPoint.name,
+              <span className="mono" key={`${contactPoint.id}-type`}>
+                {contactPoint.type}
+              </span>,
+              contactPoint.configured ? "Yes" : "No",
+            ])}
+          />
+        ) : (
+          <EmptyState
+            icon={Inbox}
+            title="No contact points configured"
+            description="Add destinations in the host app to enable delivery later."
+          />
+        )}
+      </Section>
+    </div>
   );
 }
 
