@@ -634,11 +634,9 @@ export function QueuePage() {
   const queueNameRef = useRef(queueName);
   const actionsEnabled = !!config?.hasBoss && !config.readonly;
   const manualEnqueueEnabled = actionsEnabled && !!config?.allowManualEnqueue;
-  const queueCleanPreviewEnabled =
-    actionsEnabled &&
-    (!!config?.allowQueueClean || !!config?.allowQueueCleanDelete);
+  const queueCleanPreviewEnabled = actionsEnabled && !!config?.allowQueueClean;
   const queueCleanDeleteEnabled =
-    actionsEnabled && !!config?.allowQueueCleanDelete;
+    queueCleanPreviewEnabled && !!config?.allowQueueCleanDelete;
   const previewInFlight = previewState?.status === "running";
   const deleteInFlight = deleteState?.status === "running";
   const previewSuccess =

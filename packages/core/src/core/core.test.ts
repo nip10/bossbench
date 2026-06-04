@@ -120,7 +120,11 @@ describe("BossbenchCore", () => {
     });
     const core = BossbenchCore.create({
       db: "postgres://example",
+      boss: {} as never,
       allowUnauthenticated: true,
+      readonly: false,
+      allowQueueClean: true,
+      allowQueueCleanDelete: true,
       onAuditEvent,
     });
     (core.repository as unknown as { cleanQueue: unknown }).cleanQueue =
@@ -163,7 +167,11 @@ describe("BossbenchCore", () => {
     });
     const core = BossbenchCore.create({
       db: "postgres://example",
+      boss: {} as never,
       allowUnauthenticated: true,
+      readonly: false,
+      allowQueueClean: true,
+      allowQueueCleanDelete: true,
       onAuditEvent,
     });
     (core.repository as unknown as { cleanQueue: unknown }).cleanQueue =
@@ -184,5 +192,69 @@ describe("BossbenchCore", () => {
       hasMore: false,
     });
     expect(onAuditEvent).toHaveBeenCalledTimes(1);
+  });
+
+  it("enforces queue clean delete guard for direct core calls", async () => {
+    const cleanQueue = vi.fn();
+    const core = BossbenchCore.create({
+      db: "postgres://example",
+      allowUnauthenticated: true,
+      readonly: true,
+    });
+    (core.repository as unknown as { cleanQueue: unknown }).cleanQueue =
+      cleanQueue;
+
+    await expect(
+      core.cleanQueue("email", {
+        state: "completed",
+        cutoff: "2026-05-29T10:00:00.000Z",
+        confirm: "clean completed email",
+      }),
+    ).rejects.toMatchObject({ code: "READONLY_MODE" });
+    expect(cleanQueue).not.toHaveBeenCalled();
+  });
+
+  it("audits failed queue clean delete attempts without masking repository errors", async () => {
+    const auditError = new Error("audit failed");
+    const repositoryError = Object.assign(new Error("repo failed"), {
+      code: "REPO_FAILED",
+    });
+    const onAuditEvent = vi.fn().mockRejectedValue(auditError);
+    const cleanQueue = vi.fn().mockRejectedValue(repositoryError);
+    const core = BossbenchCore.create({
+      db: "postgres://example",
+      boss: {} as never,
+      allowUnauthenticated: true,
+      allowQueueClean: true,
+      readonly: false,
+      allowQueueCleanDelete: true,
+      onAuditEvent,
+    });
+    (core.repository as unknown as { cleanQueue: unknown }).cleanQueue =
+      cleanQueue;
+
+    await expect(
+      core.cleanQueue("email", {
+        state: "failed",
+        cutoff: "2026-05-29T10:00:00.000Z",
+        limit: 25,
+        confirm: "clean failed email",
+      }),
+    ).rejects.toMatchObject({ code: "REPO_FAILED", message: "repo failed" });
+    expect(onAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "queue.clean.delete",
+        ok: false,
+        queue: "email",
+        state: "failed",
+        cutoff: "2026-05-29T10:00:00.000Z",
+        limit: 25,
+        deleted: 0,
+        deletedIds: [],
+        hasMore: false,
+        errorCode: "REPO_FAILED",
+        errorMessage: "repo failed",
+      }),
+    );
   });
 });

@@ -24,7 +24,7 @@ npx @bossbench/cli init
 
 The CLI auto-injects Hono, h3, Nuxt/Nitro, AdonisJS, TanStack Start, Express, Fastify, Elysia, NestJS, and Next.js projects.
 
-Queue clean is split into preview and delete: `allowQueueClean` enables preview only, `allowQueueCleanDelete` enables irreversible deletion, and exact confirmation text is required before a delete runs. Deletions target pg-boss storage directly, so failed deletion removes the underlying dead-letter/retry evidence. Clean is batch-limited, so repeat it while `hasMore` is true to drain large backlogs.
+Queue clean is split into preview and delete: `allowQueueClean` enables preview, and `allowQueueCleanDelete` only enables irreversible deletion when preview is already allowed too. Exact confirmation text is required before a delete runs. Deletions target pg-boss storage directly, so failed deletion removes the underlying dead-letter/retry evidence. Clean is batch-limited, so repeat it while `hasMore` is true to drain large backlogs.
 
 ## Examples
 

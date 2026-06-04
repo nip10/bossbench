@@ -70,25 +70,53 @@ export class BossbenchCore {
     queue: string,
     request: QueueCleanDeleteRequest,
   ): Promise<QueueCleanDeleteResult> {
-    const result = await this.repository.cleanQueue(queue, request);
-    const event: BossbenchAuditEvent = {
-      type: "queue.clean.delete",
-      at: new Date().toISOString(),
-      queue,
-      state: request.state,
-      cutoff: request.cutoff,
-      limit: request.limit ?? 1000,
-      deleted: result.deleted,
-      deletedIds: result.deletedIds,
-      hasMore: result.hasMore,
-      ok: true,
-    };
+    this.actions.ensureQueueCleanDeleteAvailable();
     try {
-      await this.options.onAuditEvent?.(event);
-    } catch {
-      // Audit hook failures must not roll back or mask successful deletes.
+      const result = await this.repository.cleanQueue(queue, request);
+      const event: BossbenchAuditEvent = {
+        type: "queue.clean.delete",
+        at: new Date().toISOString(),
+        queue,
+        state: request.state,
+        cutoff: request.cutoff,
+        limit: request.limit ?? 1000,
+        deleted: result.deleted,
+        deletedIds: result.deletedIds,
+        hasMore: result.hasMore,
+        ok: true,
+      };
+      try {
+        await this.options.onAuditEvent?.(event);
+      } catch {
+        // Audit hook failures must not roll back or mask successful deletes.
+      }
+      return result;
+    } catch (error) {
+      const event: BossbenchAuditEvent = {
+        type: "queue.clean.delete",
+        at: new Date().toISOString(),
+        queue,
+        state: request.state,
+        cutoff: request.cutoff,
+        limit: request.limit ?? 1000,
+        deleted: 0,
+        deletedIds: [],
+        hasMore: false,
+        ok: false,
+        ...(error instanceof Error &&
+        "code" in error &&
+        typeof (error as { code?: unknown }).code === "string"
+          ? { errorCode: (error as { code: string }).code }
+          : {}),
+        ...(error instanceof Error ? { errorMessage: error.message } : {}),
+      };
+      try {
+        await this.options.onAuditEvent?.(event);
+      } catch {
+        // Audit hook failures must not mask the repository error.
+      }
+      throw error;
     }
-    return result;
   }
   requiresAuth() {
     return !!this.options.auth?.username && !!this.options.auth?.password;

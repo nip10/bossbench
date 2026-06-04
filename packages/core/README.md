@@ -106,4 +106,4 @@ Rules support `failed_count`, `dead_letter_count`, `retry_backlog_count`, `oldes
 
 Bossbench requires non-empty `auth` by default. Use `allowUnauthenticated: true` only for local development or when another middleware protects the route. Without `auth`, Bossbench defaults to read-only mode.
 
-Queue clean is split into preview and delete. `allowQueueClean` enables preview only, `allowQueueCleanDelete` enables irreversible deletion, and exact confirmation text is required before deletion runs. Queue clean targets pg-boss storage directly, so failed deletion removes the underlying dead-letter/retry evidence. It is batch-limited; repeat it while `hasMore` is true when draining large queues.
+Queue clean is split into preview and delete. `allowQueueClean` enables preview, and `allowQueueCleanDelete` enables irreversible deletion only when preview is also allowed. Exact confirmation text is required before deletion runs. Queue clean targets pg-boss storage directly, so failed deletion removes the underlying dead-letter/retry evidence. It is batch-limited; repeat it while `hasMore` is true when draining large queues.
