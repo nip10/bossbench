@@ -130,6 +130,21 @@ const siteJsonLd = {
   ],
 };
 
+function htmlSafeJsonLd(value: unknown) {
+  return JSON.stringify(value).replace(/[<>&]/g, (char) => {
+    switch (char) {
+      case "<":
+        return "\\u003c";
+      case ">":
+        return "\\u003e";
+      case "&":
+        return "\\u0026";
+      default:
+        return char;
+    }
+  });
+}
+
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html
@@ -138,7 +153,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       className={`${GeistSans.variable} ${GeistMono.variable} ${GeistPixelLine.variable}`}
     >
       <body>
-        <script type="application/ld+json">{JSON.stringify(siteJsonLd)}</script>
+        <script type="application/ld+json">{htmlSafeJsonLd(siteJsonLd)}</script>
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
