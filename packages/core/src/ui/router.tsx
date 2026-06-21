@@ -251,14 +251,16 @@ function RootLayout() {
   const refreshCue = dashboardRefreshCue(
     Math.max(overviewUpdatedAt ?? 0, metricsUpdatedAt ?? 0) || null,
   );
+  const searchContextValue = React.useMemo(
+    () => ({ searchQuery, setSearchQuery, setCommandOpen }),
+    [searchQuery],
+  );
 
   if (isLoading || !config)
     return <div className="app-loading">Loading Bossbench…</div>;
 
   return (
-    <SearchContext.Provider
-      value={{ searchQuery, setSearchQuery, setCommandOpen }}
-    >
+    <SearchContext.Provider value={searchContextValue}>
       <Shell>
         <ShellSidebar>
           <Sidebar

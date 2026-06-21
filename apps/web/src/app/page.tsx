@@ -1,16 +1,15 @@
 import { ArrowRight, Code, Github, Heart, TerminalSquare } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { ActionButton } from "../components/action-button";
 import { CopyCommand } from "../components/copy-command";
-import {
-  ElysiaLogo,
-  ExpressLogo,
-  FastifyLogo,
-  HonoLogo,
-  NestjsLogo,
-  NextLogo,
-} from "../components/logos";
+import { ElysiaLogo } from "../components/logos/elysia";
+import { ExpressLogo } from "../components/logos/express";
+import { FastifyLogo } from "../components/logos/fastify";
+import { HonoLogo } from "../components/logos/hono";
+import { NestjsLogo } from "../components/logos/nestjs";
+import { NextLogo } from "../components/logos/next";
 import {
   JobsMockup,
   MetricsMockup,
@@ -79,10 +78,10 @@ export default function Page() {
 function Nav() {
   return (
     <nav className="top-nav">
-      <a href="/" className="brand-link">
+      <Link href="/" className="brand-link">
         <Image src="/app-icon.svg" alt="Bossbench" width={28} height={28} />
         <span>bossbench</span>
-      </a>
+      </Link>
       <div className="nav-links">
         <a href="#install">Install</a>
         <a href={GITHUB_URL} target="_blank" rel="noreferrer">

@@ -1701,7 +1701,9 @@ export function FutureJobsPage() {
   const [state, setState] = useState<BossbenchJobState | "all">("all");
   const [limit, setLimit] = useState(25);
   const [offset, setOffset] = useState(0);
-  const [sort, setSort] = useState<string | undefined>(futureJobsDefaultSort());
+  const [sort, setSort] = useState<string | undefined>(() =>
+    futureJobsDefaultSort(),
+  );
   const currentSort = parseSort(sort);
   const lastSearchQuery = useRef(searchQuery);
   const shouldResetOffset = lastSearchQuery.current !== searchQuery;
@@ -2473,12 +2475,14 @@ export function SchedulesPage() {
               value={scheduleName}
               onChange={(event) => setScheduleName(event.target.value)}
               placeholder="Queue name"
+              aria-label="Schedule queue name"
             />
             <input
               className="input"
               value={scheduleCron}
               onChange={(event) => setScheduleCron(event.target.value)}
               placeholder="* * * * *"
+              aria-label="Schedule cron expression"
             />
             <textarea
               className="input"
