@@ -5,6 +5,7 @@
     "node_modules/**",
     "dist/**",
     ".turbo/**",
+    ".worktrees/**",
     "**/.next/**",
     "apps/*/dist/**",
     "packages/*/dist/**"
