@@ -1,6 +1,6 @@
 # Workbench parity tracker
 
-Last updated: 2026-06-20
+Last updated: 2026-06-21
 
 Last upstream audit: 2026-06-04, [`pontusab/workbench@aefd22c`](https://github.com/pontusab/workbench/commit/aefd22c11cbebc26c619df201641995e661af624) after previously checked [`4937b37`](https://github.com/pontusab/workbench/commit/4937b37).
 
@@ -51,8 +51,8 @@ When auditing upstream again, compare from the `Last upstream audit` commit abov
 | Command palette | Adapted | Bossbench has route and queue navigation; Workbench command palette is richer. | [#9](https://github.com/nip10/bossbench/issues/9) |
 | Header search | Implemented | Bossbench has global/job search integrated into Jobs. | — |
 | Dark UI/theme toggle | Implemented | Bossbench supports dark/light dashboard theme. | — |
-| Overview command center | Adapted | Bossbench uses Overview as home and now adds attention signals plus a live sync cue on top of queue/job/dead-letter/warning summaries, metrics-driven throughput, wait/duration, slowest queues, and failing queues. Workbench remains richer for worker/paused-queue health, per-queue cards, and deeper live cues. | [#58](https://github.com/nip10/bossbench/issues/58) |
-| Queue overview cards/grid | Adapted | Bossbench has queue table and detail pages; Workbench queue cards are visually richer. | [#9](https://github.com/nip10/bossbench/issues/9) |
+| Overview command center | Adapted | Bossbench uses Overview as home with summary cards, attention signals, a live/synced status strip, metrics-driven throughput/wait/duration cards, queue health cards, and slow/failing queue tables. Workbench remains richer for worker/paused-queue health and broader shell affordances. | [#58](https://github.com/nip10/bossbench/issues/58) |
+| Queue overview cards/grid | Adapted | Bossbench adds visual queue health cards on Overview plus queue table/detail pages; Workbench queue cards remain more visually rich and BullMQ-specific. | [#9](https://github.com/nip10/bossbench/issues/9) |
 | Alerts dashboard | Implemented | Bossbench has a pg-boss-native Alerts page for configured rules, current SQL-backed violations, masked contact-point summaries, and delivery status. | — |
 | Jobs/runs list | Implemented | Bossbench supports search, queue/state/date/tag filters, sorting, pagination, and bulk actions. | — |
 | Bulk job actions | Adapted | Bossbench supports bulk retry/cancel/delete. Bulk promote is a BullMQ-only non-goal. | — |
@@ -141,7 +141,7 @@ When auditing upstream again, compare from the `Last upstream audit` commit abov
 
 ## Remaining priority order
 
-1. Continue dashboard command-center polish: richer overview/alerts/live cues and optional sidebar/command palette polish.
+1. Continue dashboard shell polish: optional collapsible sidebar and broader command-palette actions.
 2. Keep desktop parity deferred through [#14](https://github.com/nip10/bossbench/issues/14) and child issues [#29–#34](https://github.com/nip10/bossbench/issues?q=is%3Aissue%20state%3Aopen%20label%3Adesktop) until desktop work is explicitly resumed.
 
 ## Maintenance rule

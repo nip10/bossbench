@@ -57,7 +57,11 @@ import { StatusBadge } from "./components/shared/status-badge";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { api } from "./lib/api";
-import { buildOverviewAttentionSignals } from "./lib/dashboard-polish";
+import {
+  buildOverviewAttentionSignals,
+  buildOverviewLiveStatus,
+  buildOverviewQueueHealthCards,
+} from "./lib/dashboard-polish";
 import { parseEnqueuePayloadInput } from "./lib/enqueue";
 import {
   futureJobsDefaultSort,
@@ -321,11 +325,17 @@ async function invalidateQueueActionQueries(
 }
 
 export function OverviewPage() {
-  const { data, isLoading, error } = useOverview();
+  const {
+    data,
+    isLoading,
+    error,
+    dataUpdatedAt: overviewUpdatedAt,
+  } = useOverview();
   const {
     data: metricsData,
     isLoading: metricsLoading,
     error: metricsError,
+    dataUpdatedAt: metricsUpdatedAt,
   } = useMetrics();
   if (isLoading && !data)
     return <EmptyState icon={LoaderCircle} title="Loading overview…" />;
@@ -347,6 +357,17 @@ export function OverviewPage() {
     0,
   );
   const attentionSignals = buildOverviewAttentionSignals(overview, metricsData);
+  const liveStatus = buildOverviewLiveStatus({
+    overviewUpdatedAt,
+    metricsUpdatedAt,
+    metricsLoading,
+    metricsError: metricsError?.message,
+    hasMetrics: !!metricsData,
+  });
+  const queueHealthCards = buildOverviewQueueHealthCards(
+    overview.queues,
+    queueMetrics,
+  );
   const slowestQueues = [...(queueMetrics ?? [])].sort(
     (left, right) =>
       sortNullableDesc(left.avgDurationMs, right.avgDurationMs) ||
@@ -392,6 +413,13 @@ export function OverviewPage() {
           subtitle="Configured queues"
           icon={Inbox}
         />
+      </div>
+      <div className={`overview-live-strip overview-live-${liveStatus.tone}`}>
+        <div>
+          <span>{liveStatus.title}</span>
+          <strong>{liveStatus.meta}</strong>
+        </div>
+        <p>{liveStatus.detail}</p>
       </div>
       <Section title="Attention" subtitle="Signals that need review right now">
         {attentionSignals.length ? (
@@ -457,6 +485,45 @@ export function OverviewPage() {
         </div>
       </Section>
       <Section title="Queues" subtitle="Current queue state counts">
+        {queueHealthCards.length ? (
+          <div className="queue-health-card-grid">
+            {queueHealthCards.map((queue) => (
+              <Link
+                key={queue.name}
+                to="/queues/$queueName"
+                params={{ queueName: queue.name } as never}
+                className={`queue-health-card queue-health-${queue.tone}`}
+              >
+                <div className="queue-health-card-head">
+                  <span>{queue.label}</span>
+                  <strong className="mono">{queue.name}</strong>
+                </div>
+                <p>{queue.detail}</p>
+                <div className="queue-health-card-gridlet">
+                  <span>
+                    Created <strong>{queue.created}</strong>
+                  </span>
+                  <span>
+                    Retry <strong>{queue.retry}</strong>
+                  </span>
+                  <span>
+                    Active <strong>{queue.active}</strong>
+                  </span>
+                  <span>
+                    Failed <strong>{queue.failed}</strong>
+                  </span>
+                </div>
+                <div className="queue-health-card-metrics">
+                  <span>Error {queue.errorRate}</span>
+                  <span>Wait {queue.avgWait}</span>
+                  <span>Duration {queue.avgDuration}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="banner compact">No queues discovered yet.</div>
+        )}
         <Table
           columns={[
             "Queue",
