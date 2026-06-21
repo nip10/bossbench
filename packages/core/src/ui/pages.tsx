@@ -83,6 +83,7 @@ import {
 } from "./lib/hooks";
 import {
   buildJobExport,
+  buildJobOperationalContext,
   buildJobTimeline,
   jobExportFilename,
   stringifyForClipboard,
@@ -1949,6 +1950,11 @@ export function JobPage() {
   const timelineContext = timeline.filter(
     (event) => event.display === "context",
   );
+  const operationalContext = buildJobOperationalContext(job);
+  const hasOperationalContext =
+    operationalContext.cards.length > 0 ||
+    operationalContext.nextChecks.length > 0;
+  const hasDeadLetter = job.deadLetter !== null && job.deadLetter !== undefined;
 
   const focusTab = (tab: JobDetailTab) => {
     window.requestAnimationFrame(() => {
@@ -1997,7 +2003,7 @@ export function JobPage() {
     ["Retry Limit", job.retryLimit ?? "—"],
     ["Singleton Key", job.singletonKey ?? "—"],
     ["Expires In", job.expireInSeconds ?? "—"],
-    ["Dead Letter", job.deadLetter ? "Present" : "—"],
+    ["Dead Letter", hasDeadLetter ? "Present" : "—"],
   ];
 
   const renderPanel = (tab: JobDetailTab, children: ReactNode) => (
@@ -2147,6 +2153,42 @@ export function JobPage() {
                 </div>
               ))}
             </div>
+            {hasOperationalContext ? (
+              <div className="job-operational-context">
+                <div className="job-detail-panel-head">
+                  <div>
+                    <h3>Failure and retry context</h3>
+                    <p>
+                      Derived from pg-boss job row data. Bossbench only shows
+                      context that is available in this job record.
+                    </p>
+                  </div>
+                </div>
+                {operationalContext.cards.length ? (
+                  <div className="job-operational-card-grid">
+                    {operationalContext.cards.map((card) => (
+                      <div
+                        className={`job-operational-card ${card.tone}`}
+                        key={`${card.title}-${card.description}`}
+                      >
+                        <span>{card.title}</span>
+                        <strong>{card.description}</strong>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+                {operationalContext.nextChecks.length ? (
+                  <div className="job-next-checks">
+                    <span>Next checks</span>
+                    <ul>
+                      {operationalContext.nextChecks.map((check) => (
+                        <li key={check}>{check}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>,
         )}
 

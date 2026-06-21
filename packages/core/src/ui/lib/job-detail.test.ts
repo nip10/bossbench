@@ -1,10 +1,32 @@
 import { describe, expect, it } from "vitest";
 import {
   buildJobExport,
+  buildJobOperationalContext,
   buildJobTimeline,
   jobExportFilename,
   stringifyForClipboard,
 } from "./job-detail";
+
+const baseJob = {
+  id: "job-1",
+  name: "email-send",
+  queue: "email",
+  state: "completed" as const,
+  failureSnippet: null,
+  createdOn: "2024-01-01T00:00:00.000Z",
+  startAfter: null,
+  startedOn: "2024-01-01T00:01:00.000Z",
+  completedOn: "2024-01-01T00:02:00.000Z",
+  priority: 1,
+  data: { userId: "user-1" },
+  output: null,
+  retryCount: 0,
+  retryLimit: 3,
+  singletonKey: null,
+  expireInSeconds: null,
+  deadLetter: null,
+  raw: {},
+};
 
 describe("stringifyForClipboard", () => {
   it("stringifies objects with two-space indentation", () => {
@@ -82,6 +104,90 @@ describe("buildJobTimeline", () => {
     expect(events.at(-1)).toMatchObject({
       kind: "state",
       title: "Current state: retry",
+    });
+    expect(events.at(-2)?.description).toContain(
+      "retry limit is not available",
+    );
+  });
+
+  it("adds untimestamped failure context for failed jobs", () => {
+    const events = buildJobTimeline({
+      ...baseJob,
+      state: "failed",
+      failureSnippet: "database timeout",
+      completedOn: "2024-01-01T00:03:00.000Z",
+    });
+
+    expect(events).toContainEqual({
+      kind: "failure",
+      title: "Failure context",
+      description: "database timeout",
+      timestamp: null,
+      display: "context",
+    });
+  });
+});
+
+describe("buildJobOperationalContext", () => {
+  it("returns no cards or next checks for successful jobs without retry context", () => {
+    expect(buildJobOperationalContext(baseJob)).toEqual({
+      cards: [],
+      nextChecks: [],
+    });
+  });
+
+  it("summarizes failed jobs with safe failure snippets", () => {
+    const context = buildJobOperationalContext({
+      ...baseJob,
+      state: "failed",
+      failureSnippet: "Safe failure snippet",
+      output: { message: "Raw output message" },
+      retryCount: 3,
+      retryLimit: 3,
+    });
+
+    expect(context.cards).toContainEqual({
+      title: "Failure",
+      description: "Safe failure snippet",
+      tone: "danger",
+    });
+    expect(context.cards).toContainEqual({
+      title: "Retries",
+      description: "3 of 3 retries recorded; retry limit reached.",
+      tone: "warning",
+    });
+    expect(context.nextChecks).toContain(
+      "Inspect Output JSON for the task result or error payload.",
+    );
+    expect(context.nextChecks).toContain(
+      "Check worker and downstream service logs around the completion time.",
+    );
+  });
+
+  it("treats non-nullish falsy dead letter values as present", () => {
+    const context = buildJobOperationalContext({
+      ...baseJob,
+      deadLetter: "",
+    });
+
+    expect(context.cards).toContainEqual({
+      title: "Dead letter",
+      description:
+        "Dead-letter metadata is present. Inspect Raw JSON for the full pg-boss row.",
+      tone: "danger",
+    });
+
+    const events = buildJobTimeline({
+      ...baseJob,
+      deadLetter: false,
+    });
+
+    expect(events).toContainEqual({
+      kind: "dead-letter",
+      title: "Dead letter data present",
+      description: "pg-boss recorded dead-letter metadata for this job.",
+      timestamp: null,
+      display: "context",
     });
   });
 });

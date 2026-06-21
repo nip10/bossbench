@@ -1,6 +1,6 @@
 # Workbench parity tracker
 
-Last updated: 2026-06-04
+Last updated: 2026-06-20
 
 Last upstream audit: 2026-06-04, [`pontusab/workbench@aefd22c`](https://github.com/pontusab/workbench/commit/aefd22c11cbebc26c619df201641995e661af624) after previously checked [`4937b37`](https://github.com/pontusab/workbench/commit/4937b37).
 
@@ -18,7 +18,7 @@ This document tracks Bossbench parity with upstream Workbench. Bossbench is pg-b
 
 ## Current summary
 
-Bossbench is now strong in non-desktop Workbench parity: job operations, job detail, future-job exploration, schedule actions, manual enqueue/requeue, queue clean preview/delete, metrics, alert evaluation/delivery, adapters, CLI, MCP, examples, AI-search metadata, package/docs discoverability, and package release readiness are implemented or adapted to pg-boss/Postgres. The remaining large parity area is desktop, which is deferred until explicitly resumed; optional non-desktop polish remains around deeper job detail and command-center UX.
+Bossbench is now strong in non-desktop Workbench parity: job operations, job detail, future-job exploration, schedule actions, manual enqueue/requeue, queue clean preview/delete, metrics, alert evaluation/delivery, adapters, CLI, MCP, examples, AI-search metadata, package/docs discoverability, and package release readiness are implemented or adapted to pg-boss/Postgres. The remaining large parity area is desktop, which is deferred until explicitly resumed; optional non-desktop polish remains around command-center UX.
 
 Open parity issues:
 
@@ -57,7 +57,7 @@ When auditing upstream again, compare from the `Last upstream audit` commit abov
 | Jobs/runs list | Implemented | Bossbench supports search, queue/state/date/tag filters, sorting, pagination, and bulk actions. | — |
 | Bulk job actions | Adapted | Bossbench supports bulk retry/cancel/delete. Bulk promote is a BullMQ-only non-goal. | — |
 | Job detail tabs | Adapted | Bossbench has summary, payload, output, timeline, raw tabs plus copy/export. Workbench also has BullMQ-specific logs/error detail that Bossbench adapts through pg-boss data. | [#12](https://github.com/nip10/bossbench/issues/12) |
-| Job error/retry history detail | Gap | Bossbench exposes retry count/limit and output/raw data; Workbench has richer error/retry/timeline detail. | [#12](https://github.com/nip10/bossbench/issues/12) |
+| Job error/retry history detail | Adapted | Bossbench surfaces safe pg-boss-native failure snippets, retry count/limit context, dead-letter presence, Output/Raw inspection guidance, and timeline context. Full BullMQ-style per-attempt logs remain a non-goal because pg-boss does not store that history in the job row. | [#12](https://github.com/nip10/bossbench/issues/12) |
 | Failed reason snippets in job lists | Implemented | Bossbench job summaries include safe, short failure snippets from pg-boss output and render them in job, queue, and dead-letter lists for failed jobs. | [#57](https://github.com/nip10/bossbench/issues/57) |
 | Job clone/requeue | Adapted | Bossbench adds a safe Enqueue copy action on job detail, backed by `PgBoss.send()` and gated by `allowManualEnqueue`. | [#60](https://github.com/nip10/bossbench/issues/60) |
 | Job timeline | Adapted | Bossbench has a pg-boss-native Timeline tab built from reliable job row data: created, start_after, started, terminal timestamp, retry count, and dead-letter presence. | — |
@@ -141,9 +141,8 @@ When auditing upstream again, compare from the `Last upstream audit` commit abov
 
 ## Remaining priority order
 
-1. Deepen pg-boss job detail further: retry/error history and safe operational detail.
-2. Continue dashboard command-center polish: richer overview/alerts/live cues and optional sidebar/command palette polish.
-3. Keep desktop parity deferred through [#14](https://github.com/nip10/bossbench/issues/14) and child issues [#29–#34](https://github.com/nip10/bossbench/issues?q=is%3Aissue%20state%3Aopen%20label%3Adesktop) until desktop work is explicitly resumed.
+1. Continue dashboard command-center polish: richer overview/alerts/live cues and optional sidebar/command palette polish.
+2. Keep desktop parity deferred through [#14](https://github.com/nip10/bossbench/issues/14) and child issues [#29–#34](https://github.com/nip10/bossbench/issues?q=is%3Aissue%20state%3Aopen%20label%3Adesktop) until desktop work is explicitly resumed.
 
 ## Maintenance rule
 

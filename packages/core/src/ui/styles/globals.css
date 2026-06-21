@@ -936,6 +936,63 @@ select {
   font-weight: 600;
   overflow-wrap: anywhere;
 }
+.job-operational-context {
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+  display: grid;
+  gap: 12px;
+}
+.job-operational-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+.job-operational-card {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.job-operational-card.warning {
+  border-color: rgba(245, 158, 11, 0.32);
+  background: rgba(245, 158, 11, 0.08);
+}
+.job-operational-card.danger {
+  border-color: rgba(239, 68, 68, 0.36);
+  background: rgba(239, 68, 68, 0.08);
+}
+.job-operational-card span,
+.job-next-checks span {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.job-operational-card strong {
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.job-next-checks {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.02);
+  display: grid;
+  gap: 8px;
+}
+.job-next-checks ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted-foreground);
+}
+.job-next-checks li + li {
+  margin-top: 4px;
+}
 .empty {
   padding: 28px;
   text-align: center;
