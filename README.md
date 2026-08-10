@@ -4,6 +4,8 @@ Open-source pg-boss dashboard. Drop-in for modern Node backends.
 
 Bossbench is inspired by Workbench's embedded dashboard model, but is pg-boss-native: it reads queue/job/schedule/warning/metric data from Postgres and uses a provided `PgBoss` instance for safe mutations.
 
+![Bossbench overview](docs/screenshots/overview.png)
+
 ## Features
 
 - Workbench-style embedded dashboard UI.
@@ -15,6 +17,10 @@ Bossbench is inspired by Workbench's embedded dashboard model, but is pg-boss-na
 - SQL-backed pagination, filtering, search, and configured JSON tag filters.
 - Basic auth by default; explicit `allowUnauthenticated: true` is required for unprotected local browsing.
 - Read-only fallback when no `PgBoss` instance is connected.
+
+![Jobs list with filters](docs/screenshots/jobs-list.png)
+
+![Dead letter inspect](docs/screenshots/dead-letter.png)
 
 ## Quick start
 
@@ -43,6 +49,8 @@ Queue clean is split into preview and delete: `allowQueueClean` enables preview,
 ## Standalone app
 
 Use `apps/standalone` to run Bossbench directly against an external pg-boss/Postgres database.
+
+![Metrics dashboard](docs/screenshots/metrics.png)
 
 Required env:
 
@@ -217,7 +225,7 @@ bun run version-packages
 bun run release
 ```
 
-CI runs oxlint, Biome, typechecks, unit tests, pg-boss/Postgres integration tests, and builds. Publishing runs through the `Release` GitHub Action and requires `NPM_TOKEN`.
+CI runs oxlint, Biome, typechecks, unit tests, pg-boss/Postgres integration tests, and builds. Publishing runs through the `Release` GitHub Action using [npm Trusted Publishing](https://docs.npmjs.com/trusted-publishers) (OIDC) with `id-token: write` — no long-lived token, automatic provenance attestations. Each of the 13 `@bossbench/*` packages has a Trusted Publisher configured on npmjs.com pointing at this workflow.
 
 ## Packages
 
