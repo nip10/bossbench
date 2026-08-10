@@ -1,5 +1,12 @@
 # @bossbench/example-with-express
 
+## 0.0.2
+
+### Patch Changes
+
+- Updated dependencies [9aef9e2]
+  - @bossbench/express@2.0.0
+
 ## 0.0.1
 
 ### Patch Changes
