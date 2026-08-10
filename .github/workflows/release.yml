@@ -39,7 +39,7 @@ jobs:
       - run: bun run test
       - run: bun run test:integration
       - run: bun run build
-      - uses: changesets/action@v1
+      - uses: changesets/action@v1.9.0
         with:
           version: bun run version-packages
           publish: bun run release
@@ -47,4 +47,7 @@ jobs:
           title: "chore: version packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # Publish uses npm Trusted Publishing (OIDC). The npm CLI auto-detects
+          # GitHub Actions OIDC tokens from id-token: write. No NPM_TOKEN needed.
+          # Each of the 13 @bossbench/* packages has a Trusted Publisher
+          # configured on npmjs.com pointing at this workflow filename.
