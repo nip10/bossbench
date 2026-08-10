@@ -30,6 +30,16 @@ jobs:
           --health-retries 20
     steps:
       - uses: actions/checkout@v4
+      # actions/setup-node installs a recent npm (>= 11.5.1) that supports
+      # Trusted Publishing (OIDC) auto-detection. bun's bundled npm doesn't
+      # reliably recognize the ACTIONS_ID_TOKEN_REQUEST_TOKEN env vars that
+      # GitHub exposes when id-token: write is set, so npm publish then fails
+      # with ENEEDAUTH even though changesets reports OIDC is available.
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+          package-manager-cache: false
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.14
