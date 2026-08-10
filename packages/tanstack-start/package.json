@@ -1,6 +1,6 @@
 {
   "name": "@bossbench/tanstack-start",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "TanStack Start adapter for Bossbench, an embedded pg-boss dashboard.",
   "homepage": "https://github.com/nip10/bossbench/tree/main/packages/tanstack-start#readme",
   "license": "MIT",
