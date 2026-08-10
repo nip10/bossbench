@@ -1,8 +1,16 @@
+import { readdirSync } from "node:fs";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
+import { join } from "node:path";
+import { UI_DIST_PATH } from "@bossbench/core";
 import express from "express";
 import { describe, expect, it } from "vitest";
 import { bossbench } from "./index";
+
+// Content-hashed by the Vite build, so read the real filename instead of hardcoding it.
+const [bundledCssAsset] = readdirSync(join(UI_DIST_PATH, "assets")).filter(
+  (name) => name.endsWith(".css"),
+);
 
 describe("express adapter", () => {
   it("serves API config in explicit unauthenticated mode", async () => {
@@ -50,6 +58,31 @@ describe("express adapter", () => {
 
     expect(res.status).toBe(200);
     expect(html).toContain('<base href="/jobs/">');
+  });
+
+  it("serves bundled UI assets by nested path", async () => {
+    const app = express();
+    app.use(
+      "/jobs",
+      bossbench({ db: "postgres://example", allowUnauthenticated: true }),
+    );
+
+    const res = await request(app, `/jobs/assets/${bundledCssAsset}`);
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("text/css");
+  });
+
+  it("404s an unknown asset instead of falling through to the SPA shell", async () => {
+    const app = express();
+    app.use(
+      "/jobs",
+      bossbench({ db: "postgres://example", allowUnauthenticated: true }),
+    );
+
+    const res = await request(app, "/jobs/assets/does-not-exist.js");
+
+    expect(res.status).toBe(404);
   });
 });
 
