@@ -1,6 +1,6 @@
 {
   "name": "@bossbench/core",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Core API, repository, actions, and bundled UI for Bossbench.",
   "homepage": "https://github.com/nip10/bossbench/tree/main/packages/core#readme",
   "license": "MIT",
