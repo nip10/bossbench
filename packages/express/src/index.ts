@@ -26,9 +26,13 @@ export function bossbench(options: BossbenchOptions): ExpressRouter {
     express.json({ type: ["application/json", "application/*+json"] }),
     bridge(createFetchHandler(core, { basePath: "/" })),
   );
-  router.get("/assets/*", serveAssets());
+  // A bare string wildcard ("*") is Express-4-only path-to-regexp syntax; Express 5's
+  // path-to-regexp v6+ rejects it outright ("Missing parameter name"). RegExp route paths
+  // bypass string-pattern parsing entirely, so they still populate req.params[0] from
+  // capture groups the same way a v4 wildcard used to.
+  router.get(/^\/assets\/(.*)$/, serveAssets());
   router.get("/config", (_req, res) => res.json(core.getConfig()));
-  router.get("*", (req, res) => {
+  router.get(/.*/, (req, res) => {
     const basePath = resolveBasePath(
       core.options.basePath,
       req.originalUrl.split("?")[0] ?? req.path,
