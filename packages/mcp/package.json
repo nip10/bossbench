@@ -11,7 +11,7 @@
   },
   "type": "module",
   "bin": {
-    "bossbench-mcp": "./dist/cli.js"
+    "bossbench-mcp": "dist/cli.js"
   },
   "keywords": [
     "pg-boss",

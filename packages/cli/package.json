@@ -11,7 +11,7 @@
   },
   "type": "module",
   "bin": {
-    "bossbench": "./dist/index.js"
+    "bossbench": "dist/index.js"
   },
   "keywords": [
     "pg-boss",
