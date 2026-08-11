@@ -1,5 +1,17 @@
 # @bossbench/elysia
 
+## 1.0.1
+
+### Patch Changes
+
+- 882fdea: Republish only, no code changes. Every one of these was published before the release
+  pipeline fix (#88/#89) landed, so each still carries an unresolved `"workspace:*"`
+  dependency on npm (`@bossbench/core` for most, `@bossbench/h3` for `@bossbench/nuxt`)
+  and is uninstallable (`npm error EUNSUPPORTEDPROTOCOL`) — same issue already fixed for
+  `@bossbench/express@2.0.1`. This forces a republish of all of them through the fixed
+  pipeline. `@bossbench/core`, `@bossbench/cli`, and `@bossbench/mcp` don't depend on any
+  other workspace package, so they were never affected and aren't included here.
+
 ## 1.0.0
 
 ### Major Changes

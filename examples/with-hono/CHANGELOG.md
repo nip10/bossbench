@@ -1,5 +1,12 @@
 # @bossbench/example-with-hono
 
+## 0.0.2
+
+### Patch Changes
+
+- Updated dependencies [882fdea]
+  - @bossbench/hono@1.0.1
+
 ## 0.0.1
 
 ### Patch Changes
