@@ -49,7 +49,9 @@ function publishPackage(dir: string, pkg: PackageJson) {
   }
   const tarballName = pack.stdout.trim().split("\n").at(-1)?.trim();
   if (!tarballName) {
-    throw new Error(`Could not determine tarball name for ${pkg.name} from: ${pack.stdout}`);
+    throw new Error(
+      `Could not determine tarball name for ${pkg.name} from: ${pack.stdout}`,
+    );
   }
   const tarballPath = join(dir, tarballName);
 
@@ -70,7 +72,9 @@ function publishPackage(dir: string, pkg: PackageJson) {
 function main() {
   const outputPath = process.env.CHANGESETS_OUTPUT;
   if (!outputPath) {
-    throw new Error("CHANGESETS_OUTPUT is not set — expected to be run via changesets/action.");
+    throw new Error(
+      "CHANGESETS_OUTPUT is not set — expected to be run via changesets/action.",
+    );
   }
   // Ensure the file exists even if nothing needs publishing this run, so the action
   // doesn't warn about a missing output file for the (common, expected) no-op case.
