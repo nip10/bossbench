@@ -1,5 +1,13 @@
 # @bossbench/example-with-nestjs
 
+## 0.0.3
+
+### Patch Changes
+
+- Updated dependencies [143334c]
+  - @bossbench/express@2.0.1
+  - @bossbench/nestjs@2.0.0
+
 ## 0.0.2
 
 ### Patch Changes
