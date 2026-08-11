@@ -43,14 +43,20 @@ function isAlreadyPublished(name: string, version: string): boolean {
 function publishPackage(dir: string, pkg: PackageJson) {
   console.log(`Publishing ${pkg.name}@${pkg.version}...`);
 
+  // Diff the directory instead of parsing `bun pm pack`'s stdout for the tarball name —
+  // its console output isn't a stable contract (confirmed: the filename isn't reliably
+  // the last line, it varies between local runs and CI).
+  const tgzBefore = new Set(readdirSync(dir).filter((f) => f.endsWith(".tgz")));
   const pack = spawnSync("bun", ["pm", "pack"], { cwd: dir, encoding: "utf8" });
   if (pack.status !== 0) {
     throw new Error(`bun pm pack failed for ${pkg.name}:\n${pack.stderr}`);
   }
-  const tarballName = pack.stdout.trim().split("\n").at(-1)?.trim();
+  const tarballName = readdirSync(dir)
+    .filter((f) => f.endsWith(".tgz"))
+    .find((f) => !tgzBefore.has(f));
   if (!tarballName) {
     throw new Error(
-      `Could not determine tarball name for ${pkg.name} from: ${pack.stdout}`,
+      `bun pm pack for ${pkg.name} did not produce a new .tgz file. stdout:\n${pack.stdout}`,
     );
   }
   const tarballPath = join(dir, tarballName);
