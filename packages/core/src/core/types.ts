@@ -69,6 +69,11 @@ export interface NormalizedBossbenchAlertsOptions {
   contactPoints: BossbenchAlertContactPoint[];
 }
 
+export interface BossbenchDatabaseInfo {
+  id: string;
+  name: string;
+}
+
 export interface BossbenchOptions {
   boss?: PgBoss;
   db?: string | Pool | Client;
@@ -85,6 +90,10 @@ export interface BossbenchOptions {
   onAuditEvent?: (event: BossbenchAuditEvent) => void | Promise<void>;
   alerts?: BossbenchAlertsOptions;
   tags?: string[];
+  /** Other databases this dashboard can switch to. Populated by multi-database hosts (e.g. the standalone app); framework adapters leave this unset. */
+  databases?: BossbenchDatabaseInfo[];
+  /** Which entry in `databases` this instance serves. */
+  activeDatabaseId?: string;
 }
 
 export interface NormalizedBossbenchOptions extends BossbenchOptions {

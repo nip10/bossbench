@@ -16,6 +16,12 @@ import {
   SquareActivity,
 } from "lucide-react";
 import {
+  parseAsInteger,
+  parseAsJson,
+  parseAsString,
+  useQueryState,
+} from "nuqs";
+import {
   isValidElement,
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
@@ -1121,19 +1127,48 @@ const JOB_STATES: Array<{ value: BossbenchJobState | "all"; label: string }> = [
 
 const JOB_PAGE_SIZES = [10, 25, 50, 100] as const;
 
+function parseTagValuesParam(value: unknown): Record<string, string> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const result: Record<string, string> = {};
+  for (const [key, tagValue] of Object.entries(
+    value as Record<string, unknown>,
+  )) {
+    if (typeof tagValue === "string") result[key] = tagValue;
+  }
+  return result;
+}
+
 export function RunsPage() {
   const { data: config } = useConfig();
   const { data: queues } = useQueues();
   const queryClient = useQueryClient();
   const { searchQuery, setSearchQuery } = useDashboardSearch();
-  const [queue, setQueue] = useState("all");
-  const [state, setState] = useState<BossbenchJobState | "all">("all");
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
-  const [tagValues, setTagValues] = useState<Record<string, string>>({});
-  const [limit, setLimit] = useState(25);
-  const [offset, setOffset] = useState(0);
-  const [sort, setSort] = useState<string | undefined>("created_on:desc");
+  const [queue, setQueue] = useQueryState(
+    "queue",
+    parseAsString.withDefault("all"),
+  );
+  const [state, setState] = useQueryState(
+    "state",
+    parseAsString.withDefault("all"),
+  );
+  const [from, setFrom] = useQueryState("from", parseAsString.withDefault(""));
+  const [to, setTo] = useQueryState("to", parseAsString.withDefault(""));
+  const [tagValues, setTagValues] = useQueryState(
+    "tags",
+    parseAsJson(parseTagValuesParam).withDefault({}),
+  );
+  const [limit, setLimit] = useQueryState(
+    "limit",
+    parseAsInteger.withDefault(25),
+  );
+  const [offset, setOffset] = useQueryState(
+    "offset",
+    parseAsInteger.withDefault(0),
+  );
+  const [sort, setSort] = useQueryState(
+    "sort",
+    parseAsString.withDefault("created_on:desc"),
+  );
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [bulkActionState, setBulkActionState] = useState<BulkActionState>(null);
   const headerSelectionRef = useRef<HTMLInputElement>(null);
@@ -1145,33 +1180,24 @@ export function RunsPage() {
   const offsetForQuery = shouldResetOffset ? 0 : offset;
 
   useEffect(() => {
+    const staleKeys = Object.keys(tagValues).filter(
+      (key) => !configuredTags.includes(key),
+    );
+    if (!staleKeys.length) return;
+
     setTagValues((current) => {
-      const next: Record<string, string> = {};
-      let changed = false;
-
-      for (const tag of configuredTags) {
-        const value = current[tag] ?? "";
-        next[tag] = value;
-        if (current[tag] !== value) changed = true;
-      }
-
-      for (const key of Object.keys(current)) {
-        if (!configuredTags.includes(key)) {
-          changed = true;
-          break;
-        }
-      }
-
-      return changed ? next : current;
+      const next = { ...current };
+      for (const key of staleKeys) delete next[key];
+      return next;
     });
-  }, [configuredTags]);
+  }, [configuredTags, tagValues, setTagValues]);
 
   useEffect(() => {
     if (lastSearchQuery.current !== searchQuery) {
       lastSearchQuery.current = searchQuery;
       setOffset(0);
     }
-  }, [searchQuery]);
+  }, [searchQuery, setOffset]);
 
   const tagFilters = useMemo(() => {
     const filters: Record<string, string[]> = {};
@@ -1188,7 +1214,7 @@ export function RunsPage() {
     () => ({
       ...(searchQuery ? { q: searchQuery } : {}),
       ...(queue === "all" ? {} : { queue }),
-      ...(state === "all" ? {} : { state }),
+      ...(state === "all" ? {} : { state: state as BossbenchJobState }),
       ...(from ? { from } : {}),
       ...(to ? { to } : {}),
       ...(sort ? { sort } : {}),
@@ -1224,7 +1250,7 @@ export function RunsPage() {
 
   useEffect(() => {
     if (offset !== safeOffset) setOffset(safeOffset);
-  }, [offset, safeOffset]);
+  }, [offset, safeOffset, setOffset]);
 
   const rows = data?.items ?? [];
   const pageStart = total ? safeOffset + 1 : 0;
@@ -1329,7 +1355,7 @@ export function RunsPage() {
     direction: "asc" | "desc" | undefined,
   ) => {
     setOffset(0);
-    setSort(field && direction ? createSort(field, direction) : undefined);
+    setSort(field && direction ? createSort(field, direction) : null);
   };
 
   const toggleVisibleSelection = (checked: boolean) => {

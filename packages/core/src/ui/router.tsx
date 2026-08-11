@@ -7,6 +7,7 @@ import {
   useLocation,
   useNavigate,
 } from "@tanstack/react-router";
+import { NuqsAdapter } from "nuqs/adapters/tanstack-router";
 import * as React from "react";
 import { CommandPalette } from "./components/layout/command-palette";
 import { Header } from "./components/layout/header";
@@ -17,6 +18,7 @@ import {
   ShellHeader,
   ShellMain,
   ShellSidebar,
+  ShellSidebarOverlay,
 } from "./components/layout/shell";
 import { Sidebar } from "./components/layout/sidebar";
 import { dashboardRefreshCue } from "./lib/dashboard-polish";
@@ -148,6 +150,7 @@ function RootLayout() {
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = React.useState("");
   const [commandOpen, setCommandOpen] = React.useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
   const [refreshTick, setRefreshTick] = React.useState(0);
   const [isDark, setIsDark] = React.useState(() => {
     if (typeof window === "undefined") return true;
@@ -180,10 +183,18 @@ function RootLayout() {
         event.preventDefault();
         setIsDark((d: boolean) => !d);
       }
+      if (event.key === "Escape") {
+        setMobileNavOpen(false);
+      }
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
   }, []);
+
+  React.useEffect(() => {
+    void location.pathname;
+    setMobileNavOpen(false);
+  }, [location.pathname]);
 
   React.useEffect(() => {
     const interval = window.setInterval(() => {
@@ -260,66 +271,75 @@ function RootLayout() {
     return <div className="app-loading">Loading Bossbench…</div>;
 
   return (
-    <SearchContext.Provider value={searchContextValue}>
-      <Shell>
-        <ShellSidebar>
-          <Sidebar
-            activeNav={nav}
+    <NuqsAdapter>
+      <SearchContext.Provider value={searchContextValue}>
+        <Shell>
+          <ShellSidebar mobileOpen={mobileNavOpen}>
+            <Sidebar
+              activeNav={nav}
+              queues={queues.map((q: { name: string }) => q.name)}
+              isDark={isDark}
+              onToggleTheme={() => setIsDark((d: boolean) => !d)}
+            />
+          </ShellSidebar>
+          <ShellSidebarOverlay
+            visible={mobileNavOpen}
+            onClick={() => setMobileNavOpen(false)}
+          />
+          <ShellContent>
+            <ShellHeader>
+              <Header
+                title={title}
+                subtitle={pageSubtitle}
+                refreshCue={refreshCue}
+                onOpenMenu={() => setMobileNavOpen(true)}
+                databases={config?.databases}
+                activeDatabaseId={config?.activeDatabase}
+                actions={
+                  <HeaderSearch
+                    value={searchQuery}
+                    onValueChange={setSearchQuery}
+                    onFocus={() => setCommandOpen(true)}
+                    placeholder={nav === "jobs" ? "Search jobs…" : "Search…"}
+                  />
+                }
+              />
+            </ShellHeader>
+            <ShellMain>
+              {readonly ? (
+                <div className="banner">
+                  Browse-only mode: mutations are disabled when readonly or when
+                  no pg-boss instance is attached.
+                </div>
+              ) : null}
+              <Outlet />
+            </ShellMain>
+          </ShellContent>
+          <CommandPalette
+            open={commandOpen}
+            onOpenChange={setCommandOpen}
             queues={queues.map((q: { name: string }) => q.name)}
+            tags={configuredTags}
+            onNavigate={(to) => navigate({ to: to as never })}
+            onSelectQueue={(queue) =>
+              navigate({
+                to: "/queues/$queueName",
+                params: { queueName: queue } as never,
+              })
+            }
+            onSelectJob={(jobId) =>
+              navigate({
+                to: "/jobs/$jobId",
+                params: { jobId } as never,
+              })
+            }
+            searchQuery={searchQuery}
+            onSearchQueryChange={setSearchQuery}
             isDark={isDark}
             onToggleTheme={() => setIsDark((d: boolean) => !d)}
           />
-        </ShellSidebar>
-        <ShellContent>
-          <ShellHeader>
-            <Header
-              title={title}
-              subtitle={pageSubtitle}
-              refreshCue={refreshCue}
-              actions={
-                <HeaderSearch
-                  value={searchQuery}
-                  onValueChange={setSearchQuery}
-                  onFocus={() => setCommandOpen(true)}
-                  placeholder={nav === "jobs" ? "Search jobs…" : "Search…"}
-                />
-              }
-            />
-          </ShellHeader>
-          <ShellMain>
-            {readonly ? (
-              <div className="banner">
-                Browse-only mode: mutations are disabled when readonly or when
-                no pg-boss instance is attached.
-              </div>
-            ) : null}
-            <Outlet />
-          </ShellMain>
-        </ShellContent>
-        <CommandPalette
-          open={commandOpen}
-          onOpenChange={setCommandOpen}
-          queues={queues.map((q: { name: string }) => q.name)}
-          tags={configuredTags}
-          onNavigate={(to) => navigate({ to: to as never })}
-          onSelectQueue={(queue) =>
-            navigate({
-              to: "/queues/$queueName",
-              params: { queueName: queue } as never,
-            })
-          }
-          onSelectJob={(jobId) =>
-            navigate({
-              to: "/jobs/$jobId",
-              params: { jobId } as never,
-            })
-          }
-          searchQuery={searchQuery}
-          onSearchQueryChange={setSearchQuery}
-          isDark={isDark}
-          onToggleTheme={() => setIsDark((d: boolean) => !d)}
-        />
-      </Shell>
-    </SearchContext.Provider>
+        </Shell>
+      </SearchContext.Provider>
+    </NuqsAdapter>
   );
 }
