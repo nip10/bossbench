@@ -23,6 +23,9 @@ export function StatusBadge({
 }) {
   const config = statusMap[state] ?? { label: state, className: "state" };
   return (
-    <span className={cn(config.className, className)}>{config.label}</span>
+    <span className={cn(config.className, className)}>
+      <span className="state-dot" aria-hidden="true" />
+      {config.label}
+    </span>
   );
 }

@@ -1,34 +1,37 @@
 :root {
   color-scheme: dark;
-  --background: #090d14;
-  --foreground: #e5eefc;
-  --card: #0f1624;
-  --card-2: #0c1320;
-  --muted: #182131;
-  --muted-foreground: #94a3b8;
-  --border: rgba(148, 163, 184, 0.16);
-  --primary: #f8fafc;
-  --primary-foreground: #090d14;
-  --accent: #121a2a;
-  --accent-foreground: #e5eefc;
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  --card: #0d0d0d;
+  --card-2: #111111;
+  --muted: #171717;
+  --muted-foreground: #8a8a8a;
+  --border: rgba(255, 255, 255, 0.09);
+  --primary: #f2f2f2;
+  --primary-foreground: #0a0a0a;
+  --accent: #141414;
+  --accent-foreground: #ededed;
   --destructive: #ef4444;
   --warning: #f59e0b;
   --success: #22c55e;
   --status-active: #3b82f6;
-  --radius: 0px;
-  --sidebar-background: #0b1220;
-  --sidebar-foreground: #e5eefc;
-  --sidebar-border: rgba(148, 163, 184, 0.14);
+  --radius: 6px;
+  --sidebar-background: #0a0a0a;
+  --sidebar-foreground: #ededed;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --font-mono:
+    ui-monospace, "SF Mono", "Cascadia Mono", "Menlo", Consolas,
+    "Liberation Mono", monospace;
 }
 .dark {
-  --background: #070b12;
-  --foreground: #e5eefc;
-  --card: #0b1220;
-  --card-2: #0f1728;
-  --muted: #172033;
-  --muted-foreground: #94a3b8;
-  --border: rgba(148, 163, 184, 0.16);
-  --accent: #111827;
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  --card: #0d0d0d;
+  --card-2: #111111;
+  --muted: #171717;
+  --muted-foreground: #8a8a8a;
+  --border: rgba(255, 255, 255, 0.09);
+  --accent: #141414;
 }
 * {
   box-sizing: border-box;
@@ -42,9 +45,8 @@ body,
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family:
-    Geist, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", sans-serif;
+  font-family: var(--font-mono);
+  font-size: 13px;
 }
 a {
   color: inherit;
@@ -66,7 +68,7 @@ textarea {
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.03);
   padding: 12px 14px;
-  border-radius: 14px;
+  border-radius: 6px;
   margin-bottom: 16px;
   color: var(--muted-foreground);
 }
@@ -191,7 +193,7 @@ textarea:focus-visible {
 .icon-button {
   width: 100%;
   height: 36px;
-  border-radius: 10px;
+  border-radius: 4px;
   border: 0;
   background: transparent;
   color: var(--muted-foreground);
@@ -295,21 +297,13 @@ textarea:focus-visible {
   min-height: 132px;
   padding: 14px;
   border: 1px solid var(--border);
-  border-radius: 14px;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.045),
-    rgba(255, 255, 255, 0.015)
-  );
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
-  transition:
-    transform 120ms ease,
-    border-color 120ms ease,
-    background-color 120ms ease;
+  border-radius: 6px;
+  background: var(--card);
+  transition: border-color 120ms ease;
 }
 
 .attention-card:hover {
-  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.18);
 }
 
 .attention-card-kicker {
@@ -332,35 +326,20 @@ textarea:focus-visible {
 }
 
 .attention-critical {
-  border-color: rgba(239, 68, 68, 0.28);
-  background: linear-gradient(
-    180deg,
-    rgba(239, 68, 68, 0.08),
-    rgba(255, 255, 255, 0.015)
-  );
+  border-left: 2px solid var(--destructive);
 }
 
 .attention-warning {
-  border-color: rgba(245, 158, 11, 0.28);
-  background: linear-gradient(
-    180deg,
-    rgba(245, 158, 11, 0.08),
-    rgba(255, 255, 255, 0.015)
-  );
+  border-left: 2px solid var(--warning);
 }
 
 .attention-info {
-  border-color: rgba(59, 130, 246, 0.28);
-  background: linear-gradient(
-    180deg,
-    rgba(59, 130, 246, 0.08),
-    rgba(255, 255, 255, 0.015)
-  );
+  border-left: 2px solid var(--status-active);
 }
 
 .overview-live-strip {
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 6px;
   background: rgba(255, 255, 255, 0.025);
   padding: 12px 14px;
   display: flex;
@@ -416,7 +395,7 @@ textarea:focus-visible {
   width: min(420px, 40vw);
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.02);
-  border-radius: 10px;
+  border-radius: 4px;
   padding: 0 12px 0 32px;
   color: var(--foreground);
   outline: none;
@@ -432,7 +411,7 @@ textarea:focus-visible {
 .button {
   height: 32px;
   padding: 0 12px;
-  border-radius: 10px;
+  border-radius: 4px;
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.02);
   color: var(--foreground);
@@ -467,7 +446,7 @@ textarea:focus-visible {
 .card {
   border: 1px solid var(--border);
   background: var(--card);
-  border-radius: 16px;
+  border-radius: 6px;
   padding: 14px;
 }
 .card .label {
@@ -488,7 +467,7 @@ textarea:focus-visible {
 .panel {
   border: 1px solid var(--border);
   background: var(--card);
-  border-radius: 16px;
+  border-radius: 6px;
   overflow: hidden;
 }
 .metrics-layout {
@@ -520,7 +499,7 @@ textarea:focus-visible {
 .input,
 select {
   height: 32px;
-  border-radius: 10px;
+  border-radius: 4px;
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.02);
   color: var(--foreground);
@@ -657,29 +636,29 @@ select {
   color: var(--muted-foreground);
 }
 .state {
-  padding: 4px 8px;
-  border-radius: 999px;
   font-size: 12px;
-  border: 1px solid var(--border);
   display: inline-flex;
   align-items: center;
+  gap: 6px;
+}
+.state-dot {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  background: currentColor;
 }
 .state.active {
-  border-color: rgba(59, 130, 246, 0.3);
   color: #93c5fd;
 }
 .state.failed,
 .state.cancelled {
-  border-color: rgba(239, 68, 68, 0.3);
   color: #fca5a5;
 }
 .state.completed {
-  border-color: rgba(34, 197, 94, 0.3);
   color: #86efac;
 }
 .state.retry,
 .state.created {
-  border-color: rgba(245, 158, 11, 0.3);
   color: #fcd34d;
 }
 .sortable-header {
@@ -800,7 +779,7 @@ select {
 }
 .queue-health-card {
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 6px;
   background: rgba(255, 255, 255, 0.02);
   padding: 12px;
   display: grid;
@@ -934,7 +913,7 @@ select {
 .job-detail-tab {
   height: 32px;
   border: 1px solid transparent;
-  border-radius: 10px;
+  border-radius: 4px;
   background: transparent;
   color: var(--muted-foreground);
   padding: 0 12px;
@@ -1006,7 +985,7 @@ select {
 }
 .job-timeline-card {
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 6px;
   padding: 12px 14px;
   background: rgba(255, 255, 255, 0.02);
   display: flex;
@@ -1034,7 +1013,7 @@ select {
 }
 .job-detail-meta-card {
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 6px;
   background: rgba(255, 255, 255, 0.02);
   padding: 12px;
   display: grid;
@@ -1066,7 +1045,7 @@ select {
 }
 .job-operational-card {
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 6px;
   background: rgba(255, 255, 255, 0.02);
   padding: 12px;
   display: grid;
@@ -1096,7 +1075,7 @@ select {
 }
 .job-next-checks {
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 6px;
   padding: 12px 14px;
   background: rgba(255, 255, 255, 0.02);
   display: grid;
@@ -1141,7 +1120,7 @@ select {
 .summary-card {
   border: 1px solid var(--border);
   background: var(--card);
-  border-radius: 16px;
+  border-radius: 6px;
   padding: 14px;
   display: grid;
   gap: 10px;
@@ -1175,7 +1154,7 @@ select {
 .json-viewer {
   position: relative;
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 6px;
   background: rgba(255, 255, 255, 0.015);
   overflow: hidden;
 }
@@ -1243,7 +1222,7 @@ select {
   width: min(720px, calc(100vw - 24px));
   border: 1px solid var(--border);
   background: var(--card-2);
-  border-radius: 18px;
+  border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 20px 70px rgba(0, 0, 0, 0.5);
 }
@@ -1272,7 +1251,7 @@ select {
 }
 .cmd-item {
   padding: 10px 12px;
-  border-radius: 10px;
+  border-radius: 4px;
   display: grid;
   gap: 2px;
   text-align: left;
