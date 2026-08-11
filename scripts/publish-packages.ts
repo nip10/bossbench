@@ -87,7 +87,29 @@ function recordPublishedTag(
   );
 }
 
+function refreshLockfile() {
+  // changesets/action's "version" step only edits package.json/CHANGELOG.md files, it
+  // never re-runs bun install — so bun.lock still has pre-bump versions recorded for
+  // every workspace package. bun pm pack's workspace:* rewrite trusts that lockfile
+  // snapshot rather than reading the dependency's package.json directly, so packing a
+  // package that depends on another package bumped in the same release (e.g. nuxt on
+  // h3) would otherwise resolve to the stale, still-broken version. Confirmed for real:
+  // @bossbench/nuxt@1.0.1 shipped depending on @bossbench/h3@1.0.0 instead of @1.0.1
+  // because of exactly this.
+  const install = spawnSync("bun", ["install"], {
+    cwd: ROOT,
+    stdio: "inherit",
+  });
+  if (install.status !== 0) {
+    throw new Error(
+      "bun install failed while refreshing the lockfile before publishing.",
+    );
+  }
+}
+
 function main() {
+  refreshLockfile();
+
   const outputPath = process.env.CHANGESETS_OUTPUT;
   if (!outputPath) {
     // changesets/action doesn't always set this — e.g. its "no pending changesets,
