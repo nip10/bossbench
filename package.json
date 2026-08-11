@@ -35,7 +35,7 @@
     "commitlint:edit": "commitlint --config commitlint.config.cjs --edit .git/COMMIT_EDITMSG",
     "changeset": "changeset",
     "version-packages": "changeset version",
-    "release": "changeset publish"
+    "release": "bun scripts/publish-packages.ts"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.7",
