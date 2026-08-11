@@ -1,5 +1,12 @@
 # @bossbench/example-with-elysia
 
+## 0.0.2
+
+### Patch Changes
+
+- Updated dependencies [882fdea]
+  - @bossbench/elysia@1.0.1
+
 ## 0.0.1
 
 ### Patch Changes

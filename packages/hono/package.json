@@ -1,6 +1,6 @@
 {
   "name": "@bossbench/hono",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Hono adapter for Bossbench, an embedded pg-boss dashboard.",
   "homepage": "https://github.com/nip10/bossbench/tree/main/packages/hono#readme",
   "license": "MIT",
