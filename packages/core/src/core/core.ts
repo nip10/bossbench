@@ -49,6 +49,12 @@ export class BossbenchCore {
         ruleCount: this.options.alerts.rules.length,
         contactPointCount: this.options.alerts.contactPoints.length,
       },
+      ...(this.options.databases && this.options.databases.length > 1
+        ? {
+            databases: this.options.databases,
+            activeDatabase: this.options.activeDatabaseId,
+          }
+        : {}),
     };
   }
   async getAlerts(): Promise<BossbenchAlertsResponse> {

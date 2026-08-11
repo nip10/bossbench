@@ -25,8 +25,17 @@ type MutationResponse<T> = { ok: true; result: T };
 
 const apiBase = `${getBasePath()}/api`.replace(/\/\/api$/, "/api");
 
+function activeDatabaseId() {
+  if (typeof window === "undefined") return null;
+  return new URLSearchParams(window.location.search).get("db");
+}
+
 async function fetchJson<T>(path: string, init?: RequestInit) {
-  const response = await fetch(`${apiBase}${path}`, {
+  const dbId = activeDatabaseId();
+  const url = dbId
+    ? `${apiBase}${path}${path.includes("?") ? "&" : "?"}db=${encodeURIComponent(dbId)}`
+    : `${apiBase}${path}`;
+  const response = await fetch(url, {
     headers: { "Content-Type": "application/json", ...init?.headers },
     ...init,
   });
@@ -55,6 +64,8 @@ export const api = {
       allowQueueClean?: boolean;
       allowQueueCleanDelete?: boolean;
       tags?: string[];
+      databases?: { id: string; name: string }[];
+      activeDatabase?: string;
     }>("/config"),
   overview: () => fetchJson<OverviewStats>("/overview"),
   alerts: () => fetchJson<BossbenchAlertsResponse>("/alerts"),

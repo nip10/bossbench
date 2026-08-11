@@ -15,6 +15,56 @@ describe("readStandaloneConfig", () => {
     expect(config.auth).toBeUndefined();
   });
 
+  it("parses a single DATABASE_URL as one unnamed database", () => {
+    const config = readStandaloneConfig({ DATABASE_URL: "postgres://x" });
+    expect(config.databases).toEqual([
+      {
+        id: "1",
+        name: "Database 1",
+        databaseUrl: "postgres://x",
+        schema: "pgboss",
+      },
+    ]);
+  });
+
+  it("parses multiple pipe-separated, optionally named databases", () => {
+    const config = readStandaloneConfig({
+      DATABASE_URL: "prod::postgres://prod-host/db|postgres://staging-host/db",
+      PGBOSS_SCHEMA: "pgboss_prod|pgboss_staging",
+    });
+    expect(config.databases).toEqual([
+      {
+        id: "1",
+        name: "prod",
+        databaseUrl: "postgres://prod-host/db",
+        schema: "pgboss_prod",
+      },
+      {
+        id: "2",
+        name: "Database 2",
+        databaseUrl: "postgres://staging-host/db",
+        schema: "pgboss_staging",
+      },
+    ]);
+  });
+
+  it("applies a single PGBOSS_SCHEMA to every configured database", () => {
+    const config = readStandaloneConfig({
+      DATABASE_URL: "a::postgres://a-host/db|b::postgres://b-host/db",
+      PGBOSS_SCHEMA: "shared_schema",
+    });
+    expect(config.databases.map((db) => db.schema)).toEqual([
+      "shared_schema",
+      "shared_schema",
+    ]);
+  });
+
+  it("throws when a DATABASE_URL entry is missing its connection string", () => {
+    expect(() => readStandaloneConfig({ DATABASE_URL: "prod::" })).toThrow(
+      /entry 1 is missing a connection string/,
+    );
+  });
+
   it("enables writable mode only with auth and writable flag", () => {
     const config = readStandaloneConfig({
       DATABASE_URL: "postgres://x",

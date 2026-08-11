@@ -1,6 +1,12 @@
-export type StandaloneConfig = {
+export type StandaloneDatabaseConfig = {
+  id: string;
+  name: string;
   databaseUrl: string;
   schema: string;
+};
+
+export type StandaloneConfig = {
+  databases: StandaloneDatabaseConfig[];
   basePath: string;
   host: string;
   port: number;
@@ -12,8 +18,7 @@ export type StandaloneConfig = {
 export function readStandaloneConfig(
   env: Record<string, string | undefined>,
 ): StandaloneConfig {
-  const databaseUrl = required(env.DATABASE_URL, "DATABASE_URL is required");
-  const schema = env.PGBOSS_SCHEMA?.trim() || env.SCHEMA?.trim() || "pgboss";
+  const databases = parseDatabases(env);
   const basePath = normalizeBasePath(env.BASE_PATH ?? env.BOSSBENCH_BASE_PATH);
   const host = env.HOST?.trim() || "0.0.0.0";
   const port = toPort(env.PORT, 3000);
@@ -23,8 +28,7 @@ export function readStandaloneConfig(
   const readonly = !auth || !writable;
 
   return {
-    databaseUrl,
-    schema,
+    databases,
     basePath,
     host,
     port,
@@ -32,6 +36,46 @@ export function readStandaloneConfig(
     readonly,
     ...(auth ? { auth } : {}),
   };
+}
+
+/**
+ * DATABASE_URL accepts multiple `|`-separated connections for multi-database
+ * mode, each optionally named via a `name::connectionString` prefix (`::` is
+ * used instead of `=` since libpq keyword/value connection strings already
+ * contain `=`). PGBOSS_SCHEMA mirrors the same `|`-separated shape, aligned
+ * by position; a single value applies to every database.
+ */
+function parseDatabases(
+  env: Record<string, string | undefined>,
+): StandaloneDatabaseConfig[] {
+  const raw = required(env.DATABASE_URL, "DATABASE_URL is required");
+  const entries = raw
+    .split("|")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  if (!entries.length) throw new Error("DATABASE_URL is required");
+
+  const schemaEnv = env.PGBOSS_SCHEMA?.trim() || env.SCHEMA?.trim() || "";
+  const schemas = schemaEnv
+    .split("|")
+    .map((schema) => schema.trim())
+    .filter(Boolean);
+
+  return entries.map((entry, index) => {
+    const separatorIndex = entry.indexOf("::");
+    const name =
+      separatorIndex >= 0
+        ? entry.slice(0, separatorIndex).trim()
+        : `Database ${index + 1}`;
+    const databaseUrl =
+      separatorIndex >= 0 ? entry.slice(separatorIndex + 2).trim() : entry;
+    if (!databaseUrl)
+      throw new Error(
+        `DATABASE_URL entry ${index + 1} is missing a connection string`,
+      );
+    const schema = schemas[index] ?? schemas[0] ?? "pgboss";
+    return { id: String(index + 1), name, databaseUrl, schema };
+  });
 }
 
 export function shouldStartBoss(config: StandaloneConfig) {
