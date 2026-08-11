@@ -69,16 +69,33 @@ function publishPackage(dir: string, pkg: PackageJson) {
   }
 }
 
+function recordPublishedTag(
+  outputPath: string | undefined,
+  tag: string,
+  packageName: string,
+) {
+  if (!outputPath) return;
+  appendFileSync(
+    outputPath,
+    `${JSON.stringify({ type: "git-tag", tag, packageName })}\n`,
+  );
+}
+
 function main() {
   const outputPath = process.env.CHANGESETS_OUTPUT;
   if (!outputPath) {
-    throw new Error(
-      "CHANGESETS_OUTPUT is not set — expected to be run via changesets/action.",
+    // changesets/action doesn't always set this — e.g. its "no pending changesets,
+    // try publishing anything unpublished" fallback path invokes the publish script
+    // without it. Warn and continue rather than failing the whole run: publishing still
+    // needs to happen, it's only git-tag/GitHub-release creation for this run that's lost.
+    console.warn(
+      "CHANGESETS_OUTPUT is not set — publishing will proceed, but git tags and GitHub releases won't be created for this run.",
     );
+  } else {
+    // Ensure the file exists even if nothing needs publishing this run, so the action
+    // doesn't warn about a missing output file for the (common, expected) no-op case.
+    appendFileSync(outputPath, "");
   }
-  // Ensure the file exists even if nothing needs publishing this run, so the action
-  // doesn't warn about a missing output file for the (common, expected) no-op case.
-  appendFileSync(outputPath, "");
 
   const packageDirs = readdirSync(PACKAGES_DIR, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
@@ -97,11 +114,7 @@ function main() {
     publishPackage(dir, pkg);
     publishedCount += 1;
 
-    const tag = `${pkg.name}@${pkg.version}`;
-    appendFileSync(
-      outputPath,
-      `${JSON.stringify({ type: "git-tag", tag, packageName: pkg.name })}\n`,
-    );
+    recordPublishedTag(outputPath, `${pkg.name}@${pkg.version}`, pkg.name);
   }
 
   console.log(
