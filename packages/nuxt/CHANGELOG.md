@@ -1,5 +1,11 @@
 # @bossbench/nuxt
 
+## 1.0.3
+
+### Patch Changes
+
+- @bossbench/h3@1.0.2
+
 ## 1.0.2
 
 ### Patch Changes

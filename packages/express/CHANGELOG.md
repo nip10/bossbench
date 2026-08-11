@@ -1,5 +1,12 @@
 # @bossbench/express
 
+## 2.0.2
+
+### Patch Changes
+
+- Updated dependencies [4004412]
+  - @bossbench/core@1.1.0
+
 ## 2.0.1
 
 ### Patch Changes

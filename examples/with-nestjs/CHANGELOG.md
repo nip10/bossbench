@@ -1,5 +1,12 @@
 # @bossbench/example-with-nestjs
 
+## 0.0.5
+
+### Patch Changes
+
+- @bossbench/express@2.0.2
+- @bossbench/nestjs@2.0.2
+
 ## 0.0.4
 
 ### Patch Changes
