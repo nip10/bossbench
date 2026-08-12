@@ -160,7 +160,7 @@ function RootLayout() {
       : window.matchMedia("(prefers-color-scheme: dark)").matches;
   });
 
-  React.useEffect(() => {
+  React.useLayoutEffect(() => {
     document.documentElement.classList.toggle("dark", isDark);
     localStorage.setItem("bossbench:theme", isDark ? "dark" : "light");
   }, [isDark]);

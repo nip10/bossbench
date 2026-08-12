@@ -52,6 +52,7 @@ import type {
   ScheduleInfo,
   WarningInfo,
 } from "../core/types";
+import { ActivityChart } from "./components/metrics/activity-chart";
 import { StateBreakdownChart } from "./components/metrics/state-breakdown-chart";
 import { SummaryCard } from "./components/metrics/summary-card";
 import { ThroughputChart } from "./components/metrics/throughput-chart";
@@ -484,9 +485,6 @@ export function OverviewPage() {
         </div>
         <p>{liveStatus.detail}</p>
       </div>
-      <Section title="Job states" subtitle="Breakdown across all states">
-        <StateBreakdownChart totals={overview.totals} />
-      </Section>
       <Section title="Attention" subtitle="Signals that need review right now">
         {attentionSignals.length ? (
           <div className="attention-grid">
@@ -522,7 +520,10 @@ export function OverviewPage() {
           <div className="banner compact">{healthNotice}</div>
         ) : null}
         {metricsData?.buckets.length ? (
-          <ThroughputChart buckets={metricsData.buckets} />
+          <div className="health-charts-row">
+            <StateBreakdownChart totals={overview.totals} />
+            <ThroughputChart buckets={metricsData.buckets} />
+          </div>
         ) : null}
         <div className="stats-grid">
           <SummaryCard
@@ -2454,7 +2455,9 @@ export function JobPage() {
                   className="job-timeline-event"
                   key={`${event.kind}-${event.title}`}
                 >
-                  <div className="job-timeline-marker" aria-hidden="true" />
+                  <div className="job-timeline-marker-col">
+                    <div className="job-timeline-marker" aria-hidden="true" />
+                  </div>
                   <div className="job-timeline-card">
                     <div>
                       <strong>{event.title}</strong>
@@ -2978,35 +2981,6 @@ export function WarningsPage() {
   );
 }
 
-function Bars({
-  items,
-  palette,
-}: {
-  items: Array<{ label: string; value: number }>;
-  palette: string;
-}) {
-  const max = items.reduce((largest, item) => Math.max(largest, item.value), 0);
-
-  return (
-    <div className="stack bars">
-      {items.map((item) => (
-        <div className="bar" key={item.label}>
-          <span className="muted mono">{item.label}</span>
-          <div className="track">
-            <div
-              className={`fill ${palette}`}
-              style={{
-                width: `${scaleValue(item.value, max)}%`,
-              }}
-            />
-          </div>
-          <strong className="mono">{item.value}</strong>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function formatBucketLabel(bucket: string) {
   return new Date(bucket).toLocaleTimeString([], {
     hour: "2-digit",
@@ -3344,16 +3318,7 @@ export function ActivityPage() {
 
   return (
     <Section title="Activity" subtitle="Job activity over time">
-      <Bars
-        palette="success"
-        items={items.slice(0, 12).map((bucket) => ({
-          label: new Date(bucket.bucket).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-          value: bucket.created + bucket.completed + bucket.failed,
-        }))}
-      />
+      <ActivityChart items={items} />
     </Section>
   );
 }

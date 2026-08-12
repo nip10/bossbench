@@ -1,4 +1,33 @@
 :root {
+  color-scheme: light;
+  --background: #ffffff;
+  --foreground: #18181b;
+  --card: #ffffff;
+  --card-2: #f7f7f7;
+  --muted: #f2f2f2;
+  --muted-foreground: #6b7280;
+  --border: rgba(0, 0, 0, 0.1);
+  --primary: #18181b;
+  --primary-foreground: #ffffff;
+  --accent: #f2f2f2;
+  --accent-foreground: #18181b;
+  --destructive: #ef4444;
+  --warning: #f59e0b;
+  --success: #22c55e;
+  --status-active: #3b82f6;
+  --radius: 6px;
+  --sidebar-background: #fafafa;
+  --sidebar-foreground: #18181b;
+  --sidebar-border: rgba(0, 0, 0, 0.08);
+  --syntax-blue: #2563eb;
+  --syntax-red: #dc2626;
+  --syntax-green: #16a34a;
+  --syntax-amber: #d97706;
+  --font-mono:
+    ui-monospace, "SF Mono", "Cascadia Mono", "Menlo", Consolas,
+    "Liberation Mono", monospace;
+}
+.dark {
   color-scheme: dark;
   --background: #0a0a0a;
   --foreground: #ededed;
@@ -11,27 +40,13 @@
   --primary-foreground: #0a0a0a;
   --accent: #141414;
   --accent-foreground: #ededed;
-  --destructive: #ef4444;
-  --warning: #f59e0b;
-  --success: #22c55e;
-  --status-active: #3b82f6;
-  --radius: 6px;
   --sidebar-background: #0a0a0a;
   --sidebar-foreground: #ededed;
   --sidebar-border: rgba(255, 255, 255, 0.08);
-  --font-mono:
-    ui-monospace, "SF Mono", "Cascadia Mono", "Menlo", Consolas,
-    "Liberation Mono", monospace;
-}
-.dark {
-  --background: #0a0a0a;
-  --foreground: #ededed;
-  --card: #0d0d0d;
-  --card-2: #111111;
-  --muted: #171717;
-  --muted-foreground: #8a8a8a;
-  --border: rgba(255, 255, 255, 0.09);
-  --accent: #141414;
+  --syntax-blue: #93c5fd;
+  --syntax-red: #fca5a5;
+  --syntax-green: #86efac;
+  --syntax-amber: #fcd34d;
 }
 * {
   box-sizing: border-box;
@@ -452,14 +467,26 @@ textarea:focus-visible {
 .panel > .stats-grid {
   padding: 0 16px 16px;
 }
-.throughput-chart {
+.activity-chart {
   padding: 0 16px 16px;
+}
+.health-charts-row {
+  display: flex;
+  align-items: stretch;
+  gap: 20px;
+  padding: 0 16px 16px;
+}
+.throughput-chart {
+  flex: 1;
+  min-width: 0;
 }
 .state-breakdown {
   display: flex;
   align-items: center;
   gap: 20px;
-  padding: 0 16px 16px;
+  flex: 0 0 auto;
+  padding-right: 20px;
+  border-right: 1px solid var(--border);
 }
 .state-breakdown-chart {
   position: relative;
@@ -731,18 +758,18 @@ select {
   background: currentColor;
 }
 .state.active {
-  color: #93c5fd;
+  color: var(--syntax-blue);
 }
 .state.failed,
 .state.cancelled {
-  color: #fca5a5;
+  color: var(--syntax-red);
 }
 .state.completed {
-  color: #86efac;
+  color: var(--syntax-green);
 }
 .state.retry,
 .state.created {
-  color: #fcd34d;
+  color: var(--syntax-amber);
 }
 .sortable-header {
   display: inline-flex;
@@ -1059,21 +1086,34 @@ select {
   display: grid;
   grid-template-columns: 16px minmax(0, 1fr);
   gap: 12px;
-  align-items: start;
+  align-items: stretch;
+}
+.job-timeline-marker-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 .job-timeline-marker {
   width: 10px;
   height: 10px;
   margin-top: 14px;
   border-radius: 999px;
-  background: hsl(var(--primary));
-  box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.12);
+  background: var(--status-active);
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
+  flex-shrink: 0;
+}
+.job-timeline-event:not(:last-child) .job-timeline-marker-col::after {
+  content: "";
+  flex: 1;
+  width: 1px;
+  margin-top: 4px;
+  background: var(--border);
 }
 .job-timeline-card {
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 12px 14px;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--card);
   display: flex;
   justify-content: space-between;
   gap: 16px;
@@ -1248,12 +1288,12 @@ select {
   border: 1px solid transparent;
 }
 .summary-card-trend-good {
-  color: #86efac;
+  color: var(--syntax-green);
   background: rgba(34, 197, 94, 0.1);
   border-color: rgba(34, 197, 94, 0.25);
 }
 .summary-card-trend-bad {
-  color: #fca5a5;
+  color: var(--syntax-red);
   background: rgba(239, 68, 68, 0.1);
   border-color: rgba(239, 68, 68, 0.25);
 }
@@ -1304,17 +1344,17 @@ select {
   padding-left: 10px;
 }
 .json-key {
-  color: #93c5fd;
+  color: var(--syntax-blue);
 }
 .json-meta {
   color: var(--muted-foreground);
 }
 .json-null,
 .json-primitive {
-  color: #fca5a5;
+  color: var(--syntax-red);
 }
 .json-string {
-  color: #86efac;
+  color: var(--syntax-green);
 }
 .overlay {
   position: fixed;

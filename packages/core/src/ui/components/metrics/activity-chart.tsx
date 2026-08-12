@@ -1,12 +1,12 @@
 import {
-  Area,
-  AreaChart,
+  Bar,
+  BarChart,
   CartesianGrid,
   ResponsiveContainer,
   Tooltip,
   XAxis,
 } from "recharts";
-import type { MetricPoint } from "../../../core/types";
+import type { ActivityPoint } from "../../../core/types";
 
 function formatBucketLabel(bucket: string) {
   return new Date(bucket).toLocaleTimeString([], {
@@ -15,13 +15,14 @@ function formatBucketLabel(bucket: string) {
   });
 }
 
-export function ThroughputChart({ buckets }: { buckets: MetricPoint[] }) {
-  const data = buckets
+export function ActivityChart({ items }: { items: ActivityPoint[] }) {
+  const data = items
     .slice(0, 24)
     .slice()
     .reverse()
     .map((point) => ({
       label: formatBucketLabel(point.bucket),
+      created: point.created,
       completed: point.completed,
       failed: point.failed,
     }));
@@ -29,28 +30,9 @@ export function ThroughputChart({ buckets }: { buckets: MetricPoint[] }) {
   if (!data.length) return null;
 
   return (
-    <div className="throughput-chart">
-      <ResponsiveContainer width="100%" height={140}>
-        <AreaChart
-          data={data}
-          margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
-        >
-          <defs>
-            <linearGradient
-              id="throughput-completed"
-              x1="0"
-              y1="0"
-              x2="0"
-              y2="1"
-            >
-              <stop offset="0%" stopColor="#22c55e" stopOpacity={0.35} />
-              <stop offset="100%" stopColor="#22c55e" stopOpacity={0} />
-            </linearGradient>
-            <linearGradient id="throughput-failed" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#ef4444" stopOpacity={0.35} />
-              <stop offset="100%" stopColor="#ef4444" stopOpacity={0} />
-            </linearGradient>
-          </defs>
+    <div className="activity-chart">
+      <ResponsiveContainer width="100%" height={280}>
+        <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
           <CartesianGrid
             strokeDasharray="3 3"
             stroke="var(--border)"
@@ -73,24 +55,30 @@ export function ThroughputChart({ buckets }: { buckets: MetricPoint[] }) {
             }}
             labelStyle={{ color: "var(--muted-foreground)" }}
             itemStyle={{ fontSize: 12, color: "var(--foreground)" }}
+            cursor={{ fill: "rgba(255,255,255,0.04)" }}
           />
-          <Area
-            type="monotone"
+          <Bar
+            dataKey="created"
+            name="Created"
+            stackId="activity"
+            fill="#fcd34d"
+            radius={0}
+          />
+          <Bar
             dataKey="completed"
             name="Completed"
-            stroke="#22c55e"
-            fill="url(#throughput-completed)"
-            strokeWidth={1.5}
+            stackId="activity"
+            fill="#22c55e"
+            radius={0}
           />
-          <Area
-            type="monotone"
+          <Bar
             dataKey="failed"
             name="Failed"
-            stroke="#ef4444"
-            fill="url(#throughput-failed)"
-            strokeWidth={1.5}
+            stackId="activity"
+            fill="#ef4444"
+            radius={[2, 2, 0, 0]}
           />
-        </AreaChart>
+        </BarChart>
       </ResponsiveContainer>
     </div>
   );

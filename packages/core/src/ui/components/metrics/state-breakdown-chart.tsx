@@ -51,13 +51,14 @@ export function StateBreakdownChart({
             </Pie>
             <Tooltip
               contentStyle={{
-                background: "#0d0d0d",
-                border: "1px solid rgba(255,255,255,0.09)",
+                background: "var(--card)",
+                border: "1px solid var(--border)",
                 borderRadius: 6,
                 fontSize: 12,
                 fontFamily: "inherit",
               }}
-              labelStyle={{ color: "#8a8a8a" }}
+              labelStyle={{ color: "var(--muted-foreground)" }}
+              itemStyle={{ color: "var(--foreground)" }}
               formatter={(value: number, _name, entry) => [
                 value.toLocaleString(),
                 STATE_LABEL[entry.payload.state as BossbenchJobState],
