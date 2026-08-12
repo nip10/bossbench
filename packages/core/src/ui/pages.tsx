@@ -135,11 +135,13 @@ function Section({
   title,
   subtitle,
   actions,
+  filters,
   children,
 }: {
   title: string;
   subtitle?: string;
   actions?: ReactNode;
+  filters?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -149,8 +151,9 @@ function Section({
           <h2>{title}</h2>
           {subtitle ? <p>{subtitle}</p> : null}
         </div>
-        <div className="filters">{actions}</div>
+        {actions ? <div className="filters">{actions}</div> : null}
       </div>
+      {filters ? <div className="panel-filters">{filters}</div> : null}
       {children}
     </section>
   );
@@ -1498,7 +1501,7 @@ export function RunsPage() {
     <Section
       title="Jobs"
       subtitle={`${total.toLocaleString()} matched${total ? ` • ${pageStart}-${pageEnd}` : ""}`}
-      actions={
+      filters={
         <div className="jobs-toolbar">
           <SmartSearch
             value={searchQuery}
@@ -1892,7 +1895,7 @@ export function FutureJobsPage() {
     <Section
       title="Future Jobs"
       subtitle={futureJobsSubtitle(total, pageStart, pageEnd)}
-      actions={
+      filters={
         <div className="jobs-toolbar">
           <SmartSearch
             value={searchQuery}
@@ -2614,7 +2617,7 @@ export function SchedulesPage() {
     <Section
       title="Schedules"
       subtitle="Repeatable jobs"
-      actions={
+      filters={
         <div className="filters">
           <div className="stack" style={{ minWidth: 260, flex: "1 1 320px" }}>
             <input
