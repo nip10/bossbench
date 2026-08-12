@@ -1,7 +1,7 @@
 {
   "name": "@bossbench/example-with-next",
   "private": true,
-  "version": "0.0.3",
+  "version": "0.0.4",
   "type": "module",
   "scripts": {
     "dev": "bun run --watch src/worker.ts & next dev -p ${PORT:-3000}",

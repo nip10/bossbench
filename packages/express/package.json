@@ -1,6 +1,6 @@
 {
   "name": "@bossbench/express",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "description": "Express adapter for Bossbench, an embedded pg-boss dashboard.",
   "homepage": "https://github.com/nip10/bossbench/tree/main/packages/express#readme",
   "license": "MIT",

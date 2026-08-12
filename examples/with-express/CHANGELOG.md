@@ -1,5 +1,11 @@
 # @bossbench/example-with-express
 
+## 0.0.5
+
+### Patch Changes
+
+- @bossbench/express@2.0.3
+
 ## 0.0.4
 
 ### Patch Changes

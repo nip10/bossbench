@@ -1,6 +1,6 @@
 {
   "name": "@bossbench/h3",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "h3 adapter for Bossbench, an embedded pg-boss dashboard.",
   "homepage": "https://github.com/nip10/bossbench/tree/main/packages/h3#readme",
   "license": "MIT",
