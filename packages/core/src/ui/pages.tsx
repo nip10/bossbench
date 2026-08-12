@@ -2,6 +2,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "@tanstack/react-router";
 import {
+  Activity,
   AlertTriangle,
   BarChart3,
   Bell,
@@ -11,6 +12,8 @@ import {
   Database,
   Inbox,
   LoaderCircle,
+  type LucideIcon,
+  Moon,
   Percent,
   SearchX,
   SquareActivity,
@@ -49,7 +52,9 @@ import type {
   ScheduleInfo,
   WarningInfo,
 } from "../core/types";
+import { StateBreakdownChart } from "./components/metrics/state-breakdown-chart";
 import { SummaryCard } from "./components/metrics/summary-card";
+import { ThroughputChart } from "./components/metrics/throughput-chart";
 import { EmptyState } from "./components/shared/empty-state";
 import { JsonViewer } from "./components/shared/json-viewer";
 import { RelativeTime } from "./components/shared/relative-time";
@@ -103,6 +108,28 @@ import { formatDurationMs, formatPercent, scaleValue } from "./lib/metrics";
 import { parseScheduleDataInput } from "./lib/schedules";
 import { truncate } from "./lib/utils";
 import { useDashboardSearch } from "./router";
+
+const ATTENTION_TONE_ICON: Record<"critical" | "warning" | "info", LucideIcon> =
+  {
+    critical: AlertTriangle,
+    warning: Bell,
+    info: Activity,
+  };
+
+const QUEUE_HEALTH_TONE_ICON: Record<
+  "critical" | "warning" | "info" | "neutral",
+  LucideIcon
+> = {
+  critical: AlertTriangle,
+  warning: Clock3,
+  info: Activity,
+  neutral: Moon,
+};
+
+function bucketErrorRate(bucket: MetricPoint) {
+  const total = bucket.completed + bucket.failed;
+  return total > 0 ? bucket.failed / total : 0;
+}
 
 function Section({
   title,
@@ -374,6 +401,33 @@ export function OverviewPage() {
     overview.queues,
     queueMetrics,
   );
+  const [currentBucket, previousBucket] = metricsData?.buckets ?? [];
+  const throughputTrend =
+    currentBucket && previousBucket
+      ? {
+          current: currentBucket.completed + currentBucket.failed,
+          previous: previousBucket.completed + previousBucket.failed,
+        }
+      : undefined;
+  const errorRateTrend =
+    currentBucket && previousBucket
+      ? {
+          current: bucketErrorRate(currentBucket),
+          previous: bucketErrorRate(previousBucket),
+        }
+      : undefined;
+  const avgWaitTrend =
+    currentBucket?.avgWaitMs != null && previousBucket?.avgWaitMs != null
+      ? { current: currentBucket.avgWaitMs, previous: previousBucket.avgWaitMs }
+      : undefined;
+  const avgDurationTrend =
+    currentBucket?.avgDurationMs != null &&
+    previousBucket?.avgDurationMs != null
+      ? {
+          current: currentBucket.avgDurationMs,
+          previous: previousBucket.avgDurationMs,
+        }
+      : undefined;
   const slowestQueues = [...(queueMetrics ?? [])].sort(
     (left, right) =>
       sortNullableDesc(left.avgDurationMs, right.avgDurationMs) ||
@@ -427,20 +481,29 @@ export function OverviewPage() {
         </div>
         <p>{liveStatus.detail}</p>
       </div>
+      <Section title="Job states" subtitle="Breakdown across all states">
+        <StateBreakdownChart totals={overview.totals} />
+      </Section>
       <Section title="Attention" subtitle="Signals that need review right now">
         {attentionSignals.length ? (
           <div className="attention-grid">
-            {attentionSignals.map((signal) => (
-              <Link
-                key={`${signal.title}-${signal.value}`}
-                to={signal.href as never}
-                className={`attention-card attention-${signal.tone}`}
-              >
-                <div className="attention-card-kicker">{signal.title}</div>
-                <div className="attention-card-value">{signal.value}</div>
-                <div className="attention-card-detail">{signal.detail}</div>
-              </Link>
-            ))}
+            {attentionSignals.map((signal) => {
+              const ToneIcon = ATTENTION_TONE_ICON[signal.tone];
+              return (
+                <Link
+                  key={`${signal.title}-${signal.value}`}
+                  to={signal.href as never}
+                  className={`attention-card attention-${signal.tone}`}
+                >
+                  <div className="attention-card-kicker">
+                    <ToneIcon size={12} />
+                    {signal.title}
+                  </div>
+                  <div className="attention-card-value">{signal.value}</div>
+                  <div className="attention-card-detail">{signal.detail}</div>
+                </Link>
+              );
+            })}
           </div>
         ) : (
           <div className="banner compact">
@@ -455,12 +518,16 @@ export function OverviewPage() {
         {healthNotice ? (
           <div className="banner compact">{healthNotice}</div>
         ) : null}
+        {metricsData?.buckets.length ? (
+          <ThroughputChart buckets={metricsData.buckets} />
+        ) : null}
         <div className="stats-grid">
           <SummaryCard
             title="Throughput"
             value={summary ? summary.throughputPerHour.toFixed(1) : "—"}
             subtitle="jobs/hour"
             icon={BarChart3}
+            trend={throughputTrend}
             className="metrics-summary-card"
           />
           <SummaryCard
@@ -472,6 +539,8 @@ export function OverviewPage() {
                 : "Failed jobs"
             }
             icon={Percent}
+            trend={errorRateTrend}
+            trendPolarity="down-is-good"
             className="metrics-summary-card"
           />
           <SummaryCard
@@ -479,6 +548,8 @@ export function OverviewPage() {
             value={formatDurationMs(summary?.avgWaitMs)}
             subtitle="queued before start"
             icon={Clock3}
+            trend={avgWaitTrend}
+            trendPolarity="down-is-good"
             className="metrics-summary-card"
           />
           <SummaryCard
@@ -486,6 +557,8 @@ export function OverviewPage() {
             value={formatDurationMs(summary?.avgDurationMs)}
             subtitle="pg-boss execution time"
             icon={Clock3}
+            trend={avgDurationTrend}
+            trendPolarity="down-is-good"
             className="metrics-summary-card"
           />
         </div>
@@ -493,39 +566,45 @@ export function OverviewPage() {
       <Section title="Queues" subtitle="Current queue state counts">
         {queueHealthCards.length ? (
           <div className="queue-health-card-grid">
-            {queueHealthCards.map((queue) => (
-              <Link
-                key={queue.name}
-                to="/queues/$queueName"
-                params={{ queueName: queue.name } as never}
-                className={`queue-health-card queue-health-${queue.tone}`}
-              >
-                <div className="queue-health-card-head">
-                  <span>{queue.label}</span>
-                  <strong className="mono">{queue.name}</strong>
-                </div>
-                <p>{queue.detail}</p>
-                <div className="queue-health-card-gridlet">
-                  <span>
-                    Created <strong>{queue.created}</strong>
-                  </span>
-                  <span>
-                    Retry <strong>{queue.retry}</strong>
-                  </span>
-                  <span>
-                    Active <strong>{queue.active}</strong>
-                  </span>
-                  <span>
-                    Failed <strong>{queue.failed}</strong>
-                  </span>
-                </div>
-                <div className="queue-health-card-metrics">
-                  <span>Error {queue.errorRate}</span>
-                  <span>Wait {queue.avgWait}</span>
-                  <span>Duration {queue.avgDuration}</span>
-                </div>
-              </Link>
-            ))}
+            {queueHealthCards.map((queue) => {
+              const ToneIcon = QUEUE_HEALTH_TONE_ICON[queue.tone];
+              return (
+                <Link
+                  key={queue.name}
+                  to="/queues/$queueName"
+                  params={{ queueName: queue.name } as never}
+                  className={`queue-health-card queue-health-${queue.tone}`}
+                >
+                  <div className="queue-health-card-head">
+                    <span>
+                      <ToneIcon size={12} />
+                      {queue.label}
+                    </span>
+                    <strong className="mono">{queue.name}</strong>
+                  </div>
+                  <p>{queue.detail}</p>
+                  <div className="queue-health-card-gridlet">
+                    <span>
+                      Created <strong>{queue.created}</strong>
+                    </span>
+                    <span>
+                      Retry <strong>{queue.retry}</strong>
+                    </span>
+                    <span>
+                      Active <strong>{queue.active}</strong>
+                    </span>
+                    <span>
+                      Failed <strong>{queue.failed}</strong>
+                    </span>
+                  </div>
+                  <div className="queue-health-card-metrics">
+                    <span>Error {queue.errorRate}</span>
+                    <span>Wait {queue.avgWait}</span>
+                    <span>Duration {queue.avgDuration}</span>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         ) : (
           <div className="banner compact">No queues discovered yet.</div>
@@ -1255,6 +1334,8 @@ export function RunsPage() {
   const rows = data?.items ?? [];
   const pageStart = total ? safeOffset + 1 : 0;
   const pageEnd = total ? Math.min(safeOffset + limit, total) : 0;
+  const currentPage = Math.floor(safeOffset / limit) + 1;
+  const totalPages = Math.max(1, Math.ceil(total / limit));
   const queueOptions = queues ?? [];
   const canGoPrevious = safeOffset > 0;
   const canGoNext = total > safeOffset + limit;
@@ -1498,6 +1579,14 @@ export function RunsPage() {
               <Button
                 type="button"
                 variant="ghost"
+                onClick={() => setOffset(0)}
+                disabled={!canGoPrevious || isBulkActionRunning}
+              >
+                First
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
                 onClick={() =>
                   setOffset((current) => Math.max(0, current - limit))
                 }
@@ -1505,6 +1594,9 @@ export function RunsPage() {
               >
                 Previous
               </Button>
+              <span className="job-pagination-page muted mono">
+                Page {currentPage} of {totalPages}
+              </span>
               <Button
                 type="button"
                 variant="ghost"
@@ -1512,6 +1604,14 @@ export function RunsPage() {
                 disabled={!canGoNext || isBulkActionRunning}
               >
                 Next
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setOffset(maxOffset)}
+                disabled={!canGoNext || isBulkActionRunning}
+              >
+                Last
               </Button>
             </div>
             <div className="job-pagination-info muted">
@@ -1754,6 +1854,8 @@ export function FutureJobsPage() {
   const rows = data?.items ?? [];
   const pageStart = total ? safeOffset + 1 : 0;
   const pageEnd = total ? Math.min(safeOffset + limit, total) : 0;
+  const currentPage = Math.floor(safeOffset / limit) + 1;
+  const totalPages = Math.max(1, Math.ceil(total / limit));
   const hasFilters = !!searchQuery || queue !== "all" || state !== "all";
 
   useEffect(() => {
@@ -1857,6 +1959,14 @@ export function FutureJobsPage() {
               <Button
                 type="button"
                 variant="ghost"
+                onClick={() => setOffset(0)}
+                disabled={safeOffset <= 0}
+              >
+                First
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
                 onClick={() =>
                   setOffset((current) => Math.max(0, current - limit))
                 }
@@ -1864,6 +1974,9 @@ export function FutureJobsPage() {
               >
                 Previous
               </Button>
+              <span className="job-pagination-page muted mono">
+                Page {currentPage} of {totalPages}
+              </span>
               <Button
                 type="button"
                 variant="ghost"
@@ -1871,6 +1984,14 @@ export function FutureJobsPage() {
                 disabled={total <= safeOffset + limit}
               >
                 Next
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setOffset(maxOffset)}
+                disabled={total <= safeOffset + limit}
+              >
+                Last
               </Button>
             </div>
             <div className="job-pagination-info muted">
