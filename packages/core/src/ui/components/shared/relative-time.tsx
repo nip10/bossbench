@@ -18,7 +18,7 @@ export function RelativeTime({
       <TooltipTrigger asChild>
         <span className={className}>{formatRelativeTime(timestamp)}</span>
       </TooltipTrigger>
-      <TooltipContent>
+      <TooltipContent className="tooltip-content">
         <span className="mono">{absolute}</span>
       </TooltipContent>
     </Tooltip>

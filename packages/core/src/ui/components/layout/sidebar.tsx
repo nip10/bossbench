@@ -58,7 +58,9 @@ export function Sidebar({
                 <Icon size={16} />
               </Link>
             </TooltipTrigger>
-            <TooltipContent side="right">{label}</TooltipContent>
+            <TooltipContent side="right" className="tooltip-content">
+              {label}
+            </TooltipContent>
           </Tooltip>
         ))}
       </div>
@@ -78,7 +80,9 @@ export function Sidebar({
                   </span>
                 </Link>
               </TooltipTrigger>
-              <TooltipContent side="right">{queue}</TooltipContent>
+              <TooltipContent side="right" className="tooltip-content">
+                {queue}
+              </TooltipContent>
             </Tooltip>
           ))}
         </div>
