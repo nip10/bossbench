@@ -1,6 +1,6 @@
 {
   "name": "@bossbench/next",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Next.js adapter for Bossbench, an embedded pg-boss dashboard.",
   "homepage": "https://github.com/nip10/bossbench/tree/main/packages/next#readme",
   "license": "MIT",

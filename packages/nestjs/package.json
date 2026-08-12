@@ -1,6 +1,6 @@
 {
   "name": "@bossbench/nestjs",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "description": "NestJS adapter for Bossbench, an embedded pg-boss dashboard.",
   "homepage": "https://github.com/nip10/bossbench/tree/main/packages/nestjs#readme",
   "license": "MIT",
@@ -42,8 +42,8 @@
     "@bossbench/core": "workspace:*"
   },
   "peerDependencies": {
-    "@bossbench/express": ">=2.0.2",
-    "@bossbench/fastify": ">=1.0.2",
+    "@bossbench/express": ">=2.0.3",
+    "@bossbench/fastify": ">=1.0.3",
     "@nestjs/common": ">=10.0.0",
     "@nestjs/core": ">=10.0.0",
     "fastify": ">=4.0.0",

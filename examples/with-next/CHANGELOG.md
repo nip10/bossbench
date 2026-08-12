@@ -1,5 +1,11 @@
 # @bossbench/example-with-next
 
+## 0.0.4
+
+### Patch Changes
+
+- @bossbench/next@1.0.3
+
 ## 0.0.3
 
 ### Patch Changes

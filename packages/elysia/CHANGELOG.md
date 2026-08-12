@@ -1,5 +1,16 @@
 # @bossbench/elysia
 
+## 1.0.3
+
+### Patch Changes
+
+- Updated dependencies [3eb4650]
+- Updated dependencies [ea53cae]
+- Updated dependencies [7198ab4]
+- Updated dependencies [6569aca]
+- Updated dependencies [ba9c943]
+  - @bossbench/core@1.1.1
+
 ## 1.0.2
 
 ### Patch Changes

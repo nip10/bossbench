@@ -1,5 +1,11 @@
 # @bossbench/example-with-fastify
 
+## 0.0.4
+
+### Patch Changes
+
+- @bossbench/fastify@1.0.3
+
 ## 0.0.3
 
 ### Patch Changes
