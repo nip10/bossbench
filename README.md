@@ -6,6 +6,8 @@ Bossbench is inspired by Workbench's embedded dashboard model, but is pg-boss-na
 
 ![Bossbench overview](docs/screenshots/overview.png)
 
+![Bossbench overview, light mode](docs/screenshots/overview-light.png)
+
 ## Features
 
 - Workbench-style embedded dashboard UI.
